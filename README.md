@@ -11,8 +11,10 @@ This system automatically:
 3. **Extracts Item-Level Homologated Prices** from completed tenders
 4. **Matches Products** with your Fernandes catalog using advanced algorithms
 5. **Analyzes Price Competitiveness** against FOB prices
-6. **Stores Everything** in Google Cloud SQL for analysis
-7. **Generates Reports** for business intelligence
+6. **Prevents Duplicate Processing** with intelligent tracking (max 20 tenders per state per run)
+7. **Stores Everything** in Google Cloud SQL for analysis
+8. **Exports to Notion** for live business intelligence dashboards
+9. **Generates Reports** for business intelligence
 
 ## 🏗️ Architecture
 
@@ -24,8 +26,14 @@ This system automatically:
                                 │                       │
                                 v                       v
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Reports &     │ <- │  Google Cloud    │ <- │  Price Analysis │
-│   Analytics     │    │  SQL Database    │    │  Engine         │
+│  Notion Live    │ <- │  Google Cloud    │ <- │  Price Analysis │
+│  Dashboard      │    │  SQL Database    │    │  Engine         │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+        ^                        │                       │
+        │                        v                       v
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Duplicate     │    │   Processing     │    │   Reports &     │
+│   Prevention    │    │   Tracker        │    │   Analytics     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -95,10 +103,10 @@ gcloud sql connect your-instance-name --user=postgres
 # Execute the contents of schema.sql
 ```
 
-### 5. Run Discovery
+### 5. Run Processing
 
 ```bash
-# Discover tenders for last 30 days in DF and SP
+# Process tenders for specific date range and states (20 tenders per state max)
 python main.py --start-date 20240101 --end-date 20240131 --states DF SP
 
 # Discovery only (no item processing)
@@ -106,25 +114,34 @@ python main.py --start-date 20240101 --end-date 20240131 --discovery-only
 
 # Process items for already discovered tenders
 python main.py --items-only
+
+# View processing statistics and progress
+python view_processed_tenders.py
 ```
 
 ## 📁 Project Structure
 
 ```
 pncp-medical-processor/
-├── config.py              # Configuration and constants
-├── database.py             # Cloud SQL database operations
-├── pncp_api.py            # PNCP API client with auth
-├── classifier.py          # Tender classification system
-├── product_matcher.py     # Product matching algorithms
-├── tender_discovery.py    # Tender discovery engine
-├── item_processor.py      # Item processing and price extraction
-├── main.py                # Main orchestration
-├── complete_db_setup.py   # Automated Cloud SQL database setup
-├── schema.sql             # Database schema definition
-├── requirements.txt       # Python dependencies
-├── README.md              # This file
-└── exports/               # Generated reports and exports
+├── config.py                    # Configuration and constants
+├── database.py                  # Cloud SQL database operations
+├── pncp_api.py                  # PNCP API client with auth
+├── classifier.py                # Tender classification system
+├── product_matcher.py           # Product matching algorithms
+├── tender_discovery.py          # Tender discovery engine
+├── item_processor.py            # Item processing and price extraction
+├── main.py                      # Main orchestration
+├── complete_db_setup.py         # Automated Cloud SQL database setup
+├── schema.sql                   # Database schema definition
+├── processed_tenders_tracker.py # Duplicate prevention system
+├── view_processed_tenders.py    # Processing statistics viewer
+├── notion_integration.py        # Notion API integration
+├── setup_notion_databases.py   # Automated Notion database creation
+├── requirements.txt             # Python dependencies
+├── README.md                    # This file
+├── NOTION_SETUP.md             # Notion integration guide
+├── processed_tenders.json       # Processed tenders tracking (auto-generated)
+└── exports/                     # Generated reports and exports
 ```
 
 ## ⚙️ Configuration Options
@@ -159,27 +176,41 @@ min_match_score = 50.0  # Minimum 50% similarity
 dimension_tolerance = 0.2  # ±20% size tolerance
 ```
 
-## 🔍 Key Features
+## ✨ Key Features
 
-### 1. Smart Classification
+### 1. **Intelligent Duplicate Prevention**
+- **Tracks processed tenders** in `processed_tenders.json`
+- **Never processes the same tender twice** across multiple runs
+- **Scales efficiently** - processes 20 highest-value tenders per state per run
+- **Smart resumption** - can restart and continue where it left off
+- **Progress tracking** - view statistics with `python view_processed_tenders.py`
+
+### 2. **Live Notion Dashboard Integration**
+- **Automated Notion setup** - `python setup_notion_databases.py` creates all databases
+- **Real-time exports** - competitive opportunities automatically appear in Notion
+- **3 specialized databases**: Tenders, Items, and Competitive Opportunities
+- **Business intelligence** - visual analytics instead of CSV files
+- **Mobile access** - check opportunities on your phone
+
+### 3. **Smart Classification**
 - **Government Level**: Automatically identifies Federal/State/Municipal tenders
 - **Organization Type**: Hospital, Health Secretariat, University, etc.
 - **Tender Size**: Small (<R$50k), Medium, Large, Mega (>R$5M)
 - **Medical Relevance**: Filters for medical supply tenders
 
-### 2. Advanced Product Matching
+### 4. Advanced Product Matching
 - **Keyword Matching**: Medical terminology in Portuguese/English
 - **Fuzzy String Matching**: Handles typos and variations
 - **Dimensional Matching**: Size matching with ±20% tolerance
 - **Composite Scoring**: Weighted combination of all factors
 
-### 3. Price Analysis
+### 5. Price Analysis
 - **Homologated vs FOB Comparison**: Calculates markup percentages
 - **Competitive Analysis**: Identifies opportunities
 - **Currency Conversion**: USD/BRL exchange rate handling
 - **Volume Analysis**: MOQ vs tender quantities
 
-### 4. Comprehensive Database Schema
+### 6. Comprehensive Database Schema
 ```sql
 -- Key tables
 organizations       -- Government entities
@@ -188,6 +219,42 @@ tender_items       -- Individual items
 matched_products   -- Product matches
 homologated_results -- Detailed bid results
 processing_log     -- Audit trail
+```
+
+## ⚡ Processing Efficiency
+
+### **Intelligent Scaling**
+```bash
+# First run - processes 20 highest-value tenders per state
+python main.py --start-date 20240101 --end-date 20240131 --states SP RJ
+# Result: SP=20 tenders, RJ=20 tenders (40 total)
+
+# Second run - processes NEXT 20 highest-value unprocessed tenders per state
+python main.py --start-date 20240101 --end-date 20240131 --states SP RJ
+# Result: SP=20 NEW tenders, RJ=20 NEW tenders (40 total, 80 cumulative)
+
+# Third run - continues with next batch
+python main.py --start-date 20240101 --end-date 20240131 --states SP RJ
+# Result: Continues processing without duplicating previous work
+```
+
+### **Progress Tracking**
+```bash
+# View what's been processed anytime
+python view_processed_tenders.py
+
+# Sample output:
+📊 PROCESSED TENDERS STATISTICS
+==================================================
+Total Processed: 180
+Total Value: R$24,750,000.00
+Total Items: 4,250
+Total Matches: 1,580
+
+By State:
+  SP: 80 tenders
+  RJ: 60 tenders
+  DF: 40 tenders
 ```
 
 ## 📊 Sample Output

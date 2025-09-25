@@ -22,6 +22,10 @@ from classifier import TenderClassifier
 from tender_discovery import TenderDiscoveryEngine, create_discovery_engine, print_discovery_stats
 from item_processor import ItemProcessor, ProductCatalogManager, create_sample_fernandes_catalog
 from product_matcher import ProductMatcher
+from notion_integration import export_to_notion
+from processed_tenders_tracker import (
+    ProcessedTendersTracker, TenderIdentifier, get_processed_tenders_tracker
+)
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +52,7 @@ class PNCPMedicalProcessor:
         self.item_processor: Optional[ItemProcessor] = None
         self.catalog_manager: Optional[ProductCatalogManager] = None
         self.fernandes_products: List[Dict] = []
+        self.tracker: Optional[ProcessedTendersTracker] = None
 
     async def initialize(self):
         """Initialize all components"""
@@ -65,6 +70,10 @@ class PNCPMedicalProcessor:
 
             # Initialize processing components
             self._initialize_processors()
+
+            # Initialize processed tenders tracker
+            self.tracker = get_processed_tenders_tracker()
+            logger.info(f"Loaded tracker with {len(self.tracker.processed_tenders)} processed tenders")
 
             logger.info("Initialization completed successfully")
 
@@ -180,25 +189,71 @@ class PNCPMedicalProcessor:
                 start_date, end_date, states
             )
 
-    async def process_tender_items(self, state_code: str = None, limit: int = 50):
-        """Process items for unprocessed tenders"""
+    async def process_tender_items(self, state_code: str = None, limit: int = 20):
+        """Process items for unprocessed tenders (limited to 20 per state to avoid duplicates)"""
 
-        if not self.item_processor:
-            raise RuntimeError("Item processor not initialized")
+        if not self.item_processor or not self.tracker:
+            raise RuntimeError("Item processor or tracker not initialized")
 
         logger.info(f"Processing tender items for state: {state_code or 'all'}, limit: {limit}")
 
-        # Get unprocessed tenders
-        unprocessed_tenders = await self.db_ops.get_unprocessed_tenders(state_code, limit)
+        # Get tenders from database
+        db_tenders = await self.db_ops.get_unprocessed_tenders(state_code, limit * 3)  # Get more to account for filtering
 
-        if not unprocessed_tenders:
-            logger.info("No unprocessed tenders found")
+        if not db_tenders:
+            logger.info("No tenders found in database")
             return []
 
-        logger.info(f"Found {len(unprocessed_tenders)} unprocessed tenders")
+        # Filter out already processed tenders using tracker
+        unprocessed_tenders = self.tracker.filter_unprocessed_tenders(db_tenders)
+
+        if not unprocessed_tenders:
+            logger.info("No unprocessed tenders found (all were already processed)")
+            return []
+
+        # Limit to requested number per state
+        if len(unprocessed_tenders) > limit:
+            logger.info(f"Limiting to {limit} highest-value tenders per state")
+            # Sort by homologated value (highest first) and take top N
+            unprocessed_tenders = sorted(
+                unprocessed_tenders,
+                key=lambda x: x.get('total_homologated_value', 0),
+                reverse=True
+            )[:limit]
+
+        logger.info(f"Processing {len(unprocessed_tenders)} unprocessed tenders")
 
         # Process tenders
         results = await self.item_processor.process_multiple_tenders(unprocessed_tenders)
+
+        # Mark tenders as processed in tracker
+        for i, tender in enumerate(unprocessed_tenders):
+            try:
+                tender_id = TenderIdentifier(
+                    cnpj=tender.get('cnpj', ''),
+                    ano=tender.get('ano', 0),
+                    sequencial=tender.get('sequencial', 0),
+                    state_code=state_code or tender.get('state_code', '')
+                )
+
+                # Get result stats if available
+                result = results[i] if i < len(results) else None
+                items_count = result.total_items_found if result else 0
+                matches_found = result.matched_products if result else 0
+                status = "completed" if result and result.total_items_found > 0 else "no_items"
+
+                self.tracker.mark_as_processed(
+                    tender_id,
+                    homologated_value=tender.get('total_homologated_value', 0.0),
+                    items_count=items_count,
+                    matches_found=matches_found,
+                    status=status
+                )
+            except Exception as e:
+                logger.warning(f"Could not mark tender as processed: {e}")
+
+        # Save tracker state
+        self.tracker.save_to_file()
 
         return results
 
@@ -277,6 +332,9 @@ class PNCPMedicalProcessor:
 
         logger.info(f"Report saved to {report_filename}")
 
+        # Export to Notion if configured
+        await self.export_to_notion(discovery_stats, item_results)
+
         # Print summary
         print("\n=== WORKFLOW SUMMARY ===")
         print(f"Tenders Found: {reports['discovery_summary']['total_tenders_found']:,}")
@@ -284,6 +342,92 @@ class PNCPMedicalProcessor:
         print(f"Items Processed: {reports['item_processing_summary']['total_items']:,}")
         print(f"Product Matches: {reports['item_processing_summary']['total_matches']:,}")
         print(f"Total Value: R${reports['item_processing_summary']['total_value_brl']:,.2f}")
+
+    async def export_to_notion(self, discovery_stats, item_results):
+        """Export results to Notion databases"""
+
+        # Check if Notion integration is configured
+        notion_token = os.getenv('NOTION_API_TOKEN')
+        if not notion_token or notion_token == 'your_notion_integration_token':
+            logger.info("Notion integration not configured, skipping export")
+            return
+
+        try:
+            logger.info("Preparing data for Notion export...")
+
+            # Fetch data from database for export
+            tenders_data = await self.get_recent_tenders_for_export()
+            items_data = await self.get_recent_items_for_export()
+            opportunities_data = await self.get_competitive_opportunities_for_export()
+
+            # Export to Notion
+            await export_to_notion(tenders_data, items_data, opportunities_data)
+
+        except Exception as e:
+            logger.error(f"Notion export failed: {e}")
+
+    async def get_recent_tenders_for_export(self) -> List[Dict]:
+        """Get recent tender data formatted for Notion export"""
+        conn = await self.db_manager.get_connection()
+        try:
+            rows = await conn.fetch("""
+                SELECT t.*, o.name as organization_name
+                FROM tenders t
+                JOIN organizations o ON t.organization_id = o.id
+                WHERE t.created_at >= CURRENT_DATE - INTERVAL '7 days'
+                AND t.total_homologated_value > 0
+                ORDER BY t.total_homologated_value DESC
+                LIMIT 50
+            """)
+
+            return [dict(row) for row in rows]
+
+        finally:
+            await conn.close()
+
+    async def get_recent_items_for_export(self) -> List[Dict]:
+        """Get recent item data formatted for Notion export"""
+        conn = await self.db_manager.get_connection()
+        try:
+            rows = await conn.fetch("""
+                SELECT ti.*, t.state_code, o.name as organization_name,
+                       CASE WHEN mp.id IS NOT NULL THEN true ELSE false END as has_match
+                FROM tender_items ti
+                JOIN tenders t ON ti.tender_id = t.id
+                JOIN organizations o ON t.organization_id = o.id
+                LEFT JOIN matched_products mp ON ti.id = mp.tender_item_id
+                WHERE ti.created_at >= CURRENT_DATE - INTERVAL '7 days'
+                AND ti.homologated_total_value > 0
+                ORDER BY ti.homologated_total_value DESC
+                LIMIT 100
+            """)
+
+            return [dict(row) for row in rows]
+
+        finally:
+            await conn.close()
+
+    async def get_competitive_opportunities_for_export(self) -> List[Dict]:
+        """Get competitive opportunities formatted for Notion export"""
+        conn = await self.db_manager.get_connection()
+        try:
+            rows = await conn.fetch("""
+                SELECT mp.*, ti.description as tender_item_description,
+                       ti.quantity, t.state_code, o.name as organization_name
+                FROM matched_products mp
+                JOIN tender_items ti ON mp.tender_item_id = ti.id
+                JOIN tenders t ON ti.tender_id = t.id
+                JOIN organizations o ON t.organization_id = o.id
+                WHERE mp.is_competitive = true
+                AND mp.created_at >= CURRENT_DATE - INTERVAL '7 days'
+                ORDER BY mp.price_difference_percent DESC
+                LIMIT 50
+            """)
+
+            return [dict(row) for row in rows]
+
+        finally:
+            await conn.close()
 
     async def export_data_to_csv(self, output_dir: str = "exports"):
         """Export processed data to CSV files"""
@@ -314,6 +458,10 @@ class PNCPMedicalProcessor:
 
         if self.db_manager:
             await self.db_manager.close()
+
+        if self.tracker:
+            self.tracker.save_to_file()
+            self.tracker.print_stats()
 
         logger.info("Cleanup completed")
 
