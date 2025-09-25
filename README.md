@@ -41,11 +41,15 @@ This system automatically:
 ### 2. Installation
 
 ```bash
-# Clone and navigate to project
-cd /path/to/medical-pncp-processor
+# Clone repository
+git clone https://github.com/gabreginatto/medical.git
+cd medical
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install additional Cloud SQL dependencies
+pip install asyncpg google-cloud-sql-connector
 ```
 
 ### 3. Environment Configuration
@@ -58,10 +62,11 @@ PNCP_USERNAME=your_username
 PNCP_PASSWORD=your_password
 
 # Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_PROJECT=medical-473219
 CLOUD_SQL_REGION=us-central1
-CLOUD_SQL_INSTANCE=your-instance-name
+CLOUD_SQL_INSTANCE=pncp-medical-db
 DATABASE_NAME=pncp_medical_data
+USE_PRIVATE_IP=false
 
 # Optional: Product catalog
 FERNANDES_CATALOG_CSV=path/to/fernandes_catalog.csv
@@ -69,20 +74,25 @@ FERNANDES_CATALOG_CSV=path/to/fernandes_catalog.csv
 
 ### 4. Database Setup
 
+**Option A: Automated Setup (Recommended)**
 ```bash
-# Initialize database schema
-python -c "
-import asyncio
-from database import create_db_manager_from_env, DatabaseOperations
+# Complete automated database setup
+python complete_db_setup.py
+```
 
-async def init_db():
-    db_manager = create_db_manager_from_env()
-    db_ops = DatabaseOperations(db_manager)
-    await db_ops.initialize_database()
-    await db_manager.close()
+This will:
+- ✅ Wait for Cloud SQL instance to be ready
+- ✅ Create the database `pncp_medical_data`
+- ✅ Set up IAM authentication
+- ✅ Initialize database schema
+- ✅ Test connection
 
-asyncio.run(init_db())
-"
+**Option B: Manual Setup**
+```bash
+# If automated setup fails, use the generated schema file
+gcloud sql connect your-instance-name --user=postgres
+# Then in psql: \c pncp_medical_data
+# Execute the contents of schema.sql
 ```
 
 ### 5. Run Discovery
@@ -110,6 +120,8 @@ pncp-medical-processor/
 ├── tender_discovery.py    # Tender discovery engine
 ├── item_processor.py      # Item processing and price extraction
 ├── main.py                # Main orchestration
+├── complete_db_setup.py   # Automated Cloud SQL database setup
+├── schema.sql             # Database schema definition
 ├── requirements.txt       # Python dependencies
 ├── README.md              # This file
 └── exports/               # Generated reports and exports
