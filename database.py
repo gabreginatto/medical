@@ -58,7 +58,7 @@ class CloudSQLManager:
             password=os.getenv('DB_PASSWORD', '') if not DatabaseConfig.USE_IAM_AUTH else None,
             database=self.database_name,
             enable_iam_auth=DatabaseConfig.USE_IAM_AUTH,
-            ip_type="private" if DatabaseConfig.USE_PRIVATE_IP else "public"
+            ip_type="private" if os.getenv('USE_PRIVATE_IP', 'true').lower() == 'true' else "public"
         )
 
     def create_sync_engine(self):
