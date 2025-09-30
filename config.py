@@ -99,6 +99,9 @@ class ProcessingConfig:
     # States to process (empty list means all states)
     enabled_states: List[str] = None
 
+    # Municipalities to filter (IBGE codes) - optional, more specific than state
+    enabled_municipalities: List[str] = None
+
     # Government levels to include
     government_levels: List[GovernmentLevel] = None
 
@@ -120,6 +123,14 @@ class ProcessingConfig:
 
     # Product matching minimum score
     min_match_score: float = 50.0
+
+    # CATMAT filtering (post-processing)
+    require_medical_catmat: bool = False  # If True, only process tenders with medical CATMAT codes
+    catmat_boost_enabled: bool = True  # Boost score for tenders with medical CATMAT
+
+    # Organization caching
+    use_org_cache: bool = True  # Use cached organization classifications
+    cache_file_path: str = "org_cache.json"
 
     # API rate limiting
     max_requests_per_minute: int = 60

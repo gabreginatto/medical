@@ -135,51 +135,377 @@ class TenderClassifier:
             'policlínica militar', 'military polyclinic'
         }
 
-        # Medical relevance keywords
+        # Enhanced medical relevance keywords (organized by category)
         self.medical_keywords = {
-            # Medical supplies
-            'curativo', 'bandage', 'dressing', 'atadura',
-            'gaze', 'gauze', 'esparadrapo', 'tape',
-            'algodão', 'cotton', 'seringa', 'syringe',
-            'agulha', 'needle', 'cateter', 'catheter',
-            'sonda', 'probe', 'tubo', 'tube',
-            'máscara', 'mask', 'luva', 'glove',
-            'avental', 'gown', 'protetor', 'protector',
+            # Wound care and dressings (Fernandes core products)
+            'curativo', 'bandage', 'dressing', 'atadura', 'bandagem',
+            'gaze', 'gauze', 'compressa', 'compress',
+            'esparadrapo', 'tape', 'fita adesiva', 'adhesive tape',
+            'filme transparente', 'transparent film', 'hidrocolóide', 'hydrocolloid',
+            'alginato', 'alginate', 'espuma', 'foam dressing',
+            'borda adesiva', 'adhesive border', 'fenestrado', 'fenestrated',
 
-            # Medical equipment
+            # IV products and vascular access (Fernandes products)
+            'cateter', 'catheter', 'cateter iv', 'iv catheter',
+            'scalp', 'jelco', 'agulha', 'needle',
+            'equipo', 'infusion set', 'soro', 'saline',
+            'acesso venoso', 'venous access', 'punção', 'puncture',
+            'fixação iv', 'iv fixation', 'stabilização', 'stabilization',
+
+            # Surgical supplies
+            'cirúrgico', 'surgical', 'cirurgia', 'surgery',
+            'campo cirúrgico', 'surgical drape', 'avental cirúrgico', 'surgical gown',
+            'luva cirúrgica', 'surgical glove', 'máscara cirúrgica', 'surgical mask',
+            'capote', 'gown', 'propé', 'shoe cover',
+            'bisturi', 'scalpel', 'pinça', 'forceps',
+            'tesoura cirúrgica', 'surgical scissors',
+
+            # Sterile and disposable supplies
+            'estéril', 'sterile', 'esterilização', 'sterilization',
+            'descartável', 'disposable', 'uso único', 'single use',
+            'antisséptico', 'antiseptic', 'asséptico', 'aseptic',
+            'autoclavável', 'autoclavable',
+
+            # Medical supplies (general)
+            'seringa', 'syringe', 'algodão', 'cotton',
+            'luva', 'glove', 'máscara', 'mask',
+            'avental', 'gown', 'touca', 'cap',
+            'sonda', 'probe', 'tubo', 'tube',
+            'dreno', 'drain', 'cânula', 'cannula',
+
+            # Medical equipment categories
             'equipamento médico', 'medical equipment',
             'aparelho médico', 'medical device',
             'instrumental médico', 'medical instruments',
             'material médico', 'medical materials',
             'insumo médico', 'medical supplies',
             'material hospitalar', 'hospital materials',
-            'descartável', 'disposable',
+            'material de consumo', 'consumable materials',
 
-            # Medical procedures/areas
-            'cirúrgico', 'surgical', 'cirurgia', 'surgery',
-            'esterilização', 'sterilization', 'antisséptico', 'antiseptic',
-            'assepsia', 'asepsis', 'curativo', 'dressing',
+            # Monitoring and diagnostics
+            'monitor', 'oxímetro', 'oximeter',
+            'termômetro', 'thermometer', 'esfigmomanômetro', 'sphygmomanometer',
+            'estetoscópio', 'stethoscope',
+
+            # Imaging equipment
+            'raio-x', 'x-ray', 'ultrassom', 'ultrasound',
+            'tomografia', 'tomography', 'ressonância', 'resonance',
+
+            # Laboratory
+            'laboratório', 'laboratory', 'análise clínica', 'clinical analysis',
+            'coleta', 'collection', 'reagente', 'reagent',
+            'vidraria', 'glassware', 'pipeta', 'pipette',
+
+            # Wound and skin care
             'ferida', 'wound', 'lesão', 'lesion',
-            'tratamento', 'treatment', 'terapia', 'therapy',
+            'úlcera', 'ulcer', 'queimadura', 'burn',
+            'cicatrização', 'healing', 'desbridamento', 'debridement',
+            'tratamento de feridas', 'wound treatment',
 
-            # Medical specialties
+            # Medical procedures
+            'tratamento', 'treatment', 'terapia', 'therapy',
+            'procedimento', 'procedure', 'intervenção', 'intervention',
+            'assepsia', 'asepsis', 'antissepsia', 'antisepsis',
+
+            # Medical specialties and departments
             'cardiologia', 'cardiology', 'oncologia', 'oncology',
             'pediatria', 'pediatrics', 'ginecologia', 'gynecology',
-            'emergência', 'emergency', 'uti', 'icu',
-            'centro cirúrgico', 'surgical center',
+            'emergência', 'emergency', 'pronto-socorro', 'emergency room',
+            'uti', 'icu', 'unidade de terapia intensiva', 'intensive care',
+            'centro cirúrgico', 'surgical center', 'bloco cirúrgico', 'operating room',
+            'enfermaria', 'ward', 'ambulatório', 'outpatient',
 
             # Health context
             'saúde', 'health', 'medicina', 'medicine',
             'enfermagem', 'nursing', 'farmácia', 'pharmacy',
-            'laboratório', 'laboratory', 'diagnóstico', 'diagnosis'
+            'diagnóstico', 'diagnosis', 'paciente', 'patient',
+            'hospitalar', 'hospital', 'clínico', 'clinical'
         }
 
-        # High-relevance keywords (stronger indicators)
+        # High-relevance keywords (Fernandes-specific products - strongest indicators)
         self.high_relevance_keywords = {
-            'curativo', 'bandage', 'dressing', 'transparente', 'adesivo',
-            'fenestrado', 'borda', 'iv', 'intravenoso', 'filme',
-            'protectfilm', 'esterilização', 'cirúrgico'
+            # Transparent dressings (core Fernandes product line)
+            'curativo transparente', 'transparent dressing', 'filme transparente',
+            'curativo iv', 'iv dressing', 'fixação iv',
+            'fenestrado', 'fenestrated', 'borda adesiva', 'adhesive border',
+            'protectfilm', 'protect film',
+
+            # IV and catheter products
+            'cateter iv', 'iv catheter', 'cateter intravenoso',
+            'scalp', 'jelco', 'acesso venoso', 'fixação de cateter',
+            'estabilização', 'stabilization',
+
+            # Wound care specifics
+            'curativo estéril', 'sterile dressing',
+            'curativo cirúrgico', 'surgical dressing',
+            'curativo com borda', 'bordered dressing',
+            'filme de poliuretano', 'polyurethane film',
+
+            # Product characteristics
+            'hipoalergênico', 'hypoallergenic',
+            'impermeável', 'waterproof', 'permeável', 'breathable',
+            'não aderente', 'non-adherent',
+
+            # Key terms
+            'curativo', 'dressing', 'bandagem', 'bandage',
+            'iv', 'intravenoso', 'intravenous',
+            'transparente', 'transparent',
+            'adesivo', 'adhesive',
+            'cirúrgico', 'surgical',
+            'estéril', 'sterile'
         }
+
+        # CATMAT medical groups (Brazilian federal supply classification)
+        # Group 65: Medical, Dental & Veterinary Equipment and Supplies
+        self.catmat_medical_groups = {
+            '65': 'Medical, Dental & Veterinary Equipment (All)',
+            '6505': 'Drugs and Biologicals',
+            '6510': 'Surgical Dressing Materials',
+            '6515': 'Medical & Surgical Instruments, Equipment, and Supplies',
+            '6520': 'Dental Instruments, Equipment, and Supplies',
+            '6525': 'X-Ray Equipment and Supplies: Medical, Dental, Veterinary',
+            '6530': 'Hospital Furniture, Equipment, Utensils, and Supplies',
+            '6532': 'Hospital and Surgical Clothing and Related Special Purpose Items',
+            '6540': 'Ophthalmic Instruments, Equipment, and Supplies',
+            '6545': 'Medical Sets, Kits, and Outfits'
+        }
+
+        # Detailed CATMAT subcategories for precise matching
+        self.catmat_subcategories = {
+            # Most relevant for Fernandes products
+            '651510': 'Surgical Dressings',
+            '651515': 'Adhesive Tapes, Surgical and Medical',
+            '651520': 'Bandages and Gauze',
+            '651525': 'Wound Care Supplies',
+            '651530': 'IV Products and Catheters',
+            '651535': 'Syringes and Needles',
+            '651540': 'Medical Tubing and Accessories',
+            '653205': 'Surgical Gowns, Masks, and Drapes',
+            '653210': 'Surgical Gloves and Protective Equipment'
+        }
+
+    def extract_catmat_codes(self, text: str) -> List[str]:
+        """
+        Extract CATMAT codes from tender/item descriptions
+        CATMAT codes appear in various formats in Brazilian tenders
+        """
+        if not text:
+            return []
+
+        codes = set()
+
+        # Pattern 1: Explicit CATMAT references
+        # Examples: "CATMAT: 6515", "CATMAT 651510", "CATMAT:6515"
+        pattern1 = re.findall(r'CATMAT[\s:]*(\d{4,8})', text, re.IGNORECASE)
+        codes.update(pattern1)
+
+        # Pattern 2: BR codes (common in Brazilian catalogs)
+        # Examples: "BR 0439626", "BR0439626"
+        pattern2 = re.findall(r'BR[\s]*(\d{7,})', text, re.IGNORECASE)
+        codes.update(pattern2)
+
+        # Pattern 3: Classification codes
+        # Examples: "CÓDIGO 6515", "Classe: 651510"
+        pattern3 = re.findall(r'(?:CÓDIGO|CLASS[EF]|CLASSIFICAÇÃO)[\s:]*(\d{4,8})', text, re.IGNORECASE)
+        codes.update(pattern3)
+
+        # Pattern 4: Standalone 4-6 digit codes starting with 65
+        # Examples: "6515", "651510" (medical group indicators)
+        pattern4 = re.findall(r'\b(65\d{2,6})\b', text)
+        codes.update(pattern4)
+
+        return sorted(list(codes))
+
+    def is_medical_catmat(self, code: str) -> bool:
+        """
+        Check if CATMAT code belongs to medical group (Group 65)
+        Returns True for any code starting with 65
+        """
+        if not code:
+            return False
+        return code.startswith('65')
+
+    def get_catmat_category_info(self, code: str) -> Optional[str]:
+        """Get category description for a CATMAT code"""
+        if not code:
+            return None
+
+        # Try exact match in subcategories first
+        if code in self.catmat_subcategories:
+            return self.catmat_subcategories[code]
+
+        # Try exact match in main groups
+        if code in self.catmat_medical_groups:
+            return self.catmat_medical_groups[code]
+
+        # Try partial match (e.g., '6515' matches '651510')
+        for length in [6, 4, 2]:
+            if len(code) >= length:
+                prefix = code[:length]
+                if prefix in self.catmat_subcategories:
+                    return self.catmat_subcategories[prefix]
+                if prefix in self.catmat_medical_groups:
+                    return self.catmat_medical_groups[prefix]
+
+        return None
+
+    def quick_medical_score(self, tender_data: Dict, org_cache=None) -> Tuple[int, bool]:
+        """
+        Fast medical scoring without API calls (for Stage 2 quick filtering)
+        Returns: (score, should_reject)
+        - score: 0-100 confidence score
+        - should_reject: True if definitively non-medical
+        """
+        score = 0
+        should_reject = False
+
+        # Extract basic data
+        cnpj = tender_data.get('cnpj', '')
+        org_name = tender_data.get('orgaoEntidade', {}).get('razaoSocial', '') or tender_data.get('organization_name', '')
+        objeto = tender_data.get('objetoCompra', '') or tender_data.get('title', '')
+
+        # Check org cache first (fastest)
+        if org_cache and cnpj:
+            cache_result = org_cache.is_cached_medical_org(cnpj)
+            if cache_result:
+                is_medical, confidence = cache_result
+                if is_medical:
+                    return (int(confidence), False)  # High score, don't reject
+                else:
+                    return (0, True)  # Reject immediately
+
+        org_name_lower = org_name.lower()
+        objeto_lower = objeto.lower()
+
+        # REJECTION KEYWORDS - definitively non-medical
+        rejection_keywords = [
+            'educacao', 'educação', 'escola', 'ensino',
+            'transporte', 'onibus', 'ônibus', 'veiculo', 'veículo',
+            'obras', 'pavimentacao', 'pavimentação', 'asfalto',
+            'saneamento', 'esgoto', 'água', 'agua',
+            'iluminacao', 'iluminação', 'luminaria', 'luminária',
+            'informatica', 'informática', 'computador', 'notebook',
+            'mobiliario escolar', 'mobiliário escolar',
+            'merenda', 'alimentacao escolar', 'alimentação escolar',
+            'uniforme escolar', 'fardamento',
+            'combustivel', 'combustível', 'gasolina', 'diesel',
+            'material de limpeza', 'produto de limpeza'
+        ]
+
+        # Check rejection in org name
+        for keyword in rejection_keywords:
+            if keyword in org_name_lower:
+                should_reject = True
+                return (0, should_reject)
+
+        # Check rejection in object (less strict)
+        rejection_in_object = sum(1 for kw in rejection_keywords if kw in objeto_lower)
+        if rejection_in_object >= 2:  # Multiple rejection keywords
+            should_reject = True
+            return (0, should_reject)
+
+        # MEDICAL ORGANIZATION KEYWORDS
+        medical_org_keywords = {
+            'hospital': 30,
+            'saude': 25,
+            'saúde': 25,
+            'sus': 20,
+            'clinica': 20,
+            'clínica': 20,
+            'santa casa': 25,
+            'upa': 20,
+            'samu': 20,
+            'hemocentro': 25,
+            'hemoderivados': 25,
+            'maternidade': 20,
+            'policlinica': 20,
+            'policlínica': 20,
+            'pronto socorro': 20,
+            'pronto-socorro': 20,
+            'ambulatorio': 15,
+            'ambulatório': 15,
+            'posto de saude': 15,
+            'posto de saúde': 15,
+            'vigilancia sanitaria': 20,
+            'vigilância sanitária': 20
+        }
+
+        for keyword, points in medical_org_keywords.items():
+            if keyword in org_name_lower:
+                score += points
+
+        # MEDICAL OBJECT KEYWORDS
+        medical_object_keywords = {
+            'medicamento': 25,
+            'medico': 20,
+            'médico': 20,
+            'hospitalar': 20,
+            'cirurgico': 20,
+            'cirúrgico': 20,
+            'laboratorio': 15,
+            'laboratório': 15,
+            'curativo': 25,
+            'seringa': 20,
+            'cateter': 20,
+            'equipo': 20,
+            'material penso': 20,
+            'material médico': 25,
+            'material hospitalar': 25,
+            'insumo médico': 20,
+            'equipamento médico': 20,
+            'gaze': 15,
+            'luva': 10,
+            'máscara': 10,
+            'mascara': 10
+        }
+
+        for keyword, points in medical_object_keywords.items():
+            if keyword in objeto_lower:
+                score += points
+
+        # VALUE-BASED ADJUSTMENTS
+        homologated_value = tender_data.get('valorTotalHomologado', 0) or 0
+        if homologated_value > 50_000:
+            score += 10  # Large purchases more likely to be equipment
+        elif homologated_value > 100_000:
+            score += 15
+
+        # MODALITY CHECK
+        modalidade = tender_data.get('modalidadeId')
+        if modalidade in [6, 8]:  # Pregão Eletrônico, Dispensa
+            score += 5
+
+        return (min(score, 100), should_reject)
+
+    def assess_catmat_relevance(self, text: str) -> Tuple[bool, float, List[str], str]:
+        """
+        Assess medical relevance using CATMAT codes (post-processing)
+        Returns: (is_medical, confidence_score, codes_found, reasoning)
+        """
+        codes = self.extract_catmat_codes(text)
+
+        if not codes:
+            return False, 0.0, [], "No CATMAT codes found"
+
+        # Check if any codes are medical
+        medical_codes = [code for code in codes if self.is_medical_catmat(code)]
+
+        if not medical_codes:
+            return False, 0.0, codes, f"Non-medical CATMAT codes found: {codes}"
+
+        # High confidence with explicit medical CATMAT codes
+        confidence = 95.0
+
+        # Get category descriptions
+        categories = []
+        for code in medical_codes:
+            category = self.get_catmat_category_info(code)
+            if category:
+                categories.append(f"{code}={category}")
+
+        reasoning = f"Medical CATMAT codes found: {', '.join(categories or medical_codes)}"
+
+        return True, confidence, medical_codes, reasoning
 
     def _calculate_keyword_score(self, text: str, keywords: Set[str]) -> Tuple[float, List[str]]:
         """Calculate keyword matching score and return found keywords"""
@@ -297,15 +623,28 @@ class TenderClassifier:
 
     def assess_medical_relevance(self, tender_title: str, tender_description: str,
                                items_description: str = "") -> Tuple[bool, float, List[str], str]:
-        """Assess if tender is relevant to medical supplies"""
+        """
+        Assess if tender is relevant to medical supplies
+        Uses multi-level approach: CATMAT codes (highest confidence) + keywords
+        """
 
-        combined_text = f"{tender_title} {tender_description} {items_description}".lower()
+        combined_text = f"{tender_title} {tender_description} {items_description}"
+
+        # Level 1: Check for CATMAT codes (highest confidence)
+        has_catmat, catmat_confidence, catmat_codes, catmat_reasoning = self.assess_catmat_relevance(combined_text)
+
+        if has_catmat:
+            # CATMAT codes provide highest confidence
+            return True, catmat_confidence, catmat_codes, catmat_reasoning
+
+        # Level 2: Keyword-based classification (fallback)
+        combined_text_lower = combined_text.lower()
 
         # Calculate general medical relevance
-        medical_score, medical_keywords_found = self._calculate_keyword_score(combined_text, self.medical_keywords)
+        medical_score, medical_keywords_found = self._calculate_keyword_score(combined_text_lower, self.medical_keywords)
 
         # Calculate high-relevance score (for products we specifically sell)
-        high_rel_score, high_rel_keywords = self._calculate_keyword_score(combined_text, self.high_relevance_keywords)
+        high_rel_score, high_rel_keywords = self._calculate_keyword_score(combined_text_lower, self.high_relevance_keywords)
 
         # Combined score with weight on high-relevance keywords
         combined_score = (medical_score * 0.6) + (high_rel_score * 0.4)

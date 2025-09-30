@@ -152,10 +152,26 @@ class ItemProcessor:
             return None, []
 
         # Extract item data
+        item_description = item.get('descricao', '')
+
+        # Extract CATMAT codes from item description (post-processing)
+        from classifier import TenderClassifier
+        classifier = TenderClassifier()
+        catmat_codes = classifier.extract_catmat_codes(item_description)
+        has_medical_catmat = any(classifier.is_medical_catmat(code) for code in catmat_codes)
+
+        # Calculate CATMAT-boosted medical score
+        catmat_score_boost = 0
+        if has_medical_catmat:
+            catmat_score_boost = 20  # Add 20 points for medical CATMAT codes
+
         processed_item = {
             'tender_id': tender_id,
             'item_number': item_number,
-            'description': item.get('descricao', ''),
+            'description': item_description,
+            'catmat_codes': catmat_codes,  # Store extracted CATMAT codes
+            'has_medical_catmat': has_medical_catmat,
+            'catmat_score_boost': catmat_score_boost,
             'unit': item.get('unidadeMedida'),
             'quantity': self._safe_float(item.get('quantidade')),
             'estimated_unit_value': self._safe_float(item.get('valorUnitarioEstimado')),
@@ -192,6 +208,11 @@ class ItemProcessor:
                     if processed_item['description']:
                         matches = await self._match_item_with_products(processed_item)
                         matched_products.extend(matches)
+
+                        # Log CATMAT information for medical items
+                        if processed_item['has_medical_catmat']:
+                            logger.info(f"Medical CATMAT codes found in item {item_number}: "
+                                      f"{processed_item['catmat_codes']}")
 
         except Exception as e:
             logger.warning(f"Error getting results for item {item_number}: {e}")

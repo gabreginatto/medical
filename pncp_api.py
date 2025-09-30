@@ -251,6 +251,35 @@ class PNCPAPIClient:
         logger.info(f"Discovered {len(all_tenders)} tenders for {state_code}")
         return all_tenders
 
+    async def fetch_sample_items(self, cnpj: str, year: int, sequential: int, max_items: int = 3) -> List[Dict]:
+        """
+        Fetch only first N items for quick validation (Stage 3 optimization)
+        MASSIVE API savings: fetch 3 items instead of 50+
+        Returns: List of item dictionaries
+        """
+        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
+
+        # Limit page size to requested number of items
+        params = {
+            'pagina': 1,
+            'tamanhoPagina': min(max_items, 10)  # API might have min limit
+        }
+
+        try:
+            status, response = await self._make_request('GET', url, params=params)
+
+            if status == 200:
+                items = response.get('data', [])
+                # Return only the requested number
+                return items[:max_items]
+            else:
+                logger.warning(f"Failed to fetch sample items for {cnpj}/{year}/{sequential}: {status}")
+                return []
+
+        except Exception as e:
+            logger.error(f"Error fetching sample items for {cnpj}/{year}/{sequential}: {e}")
+            return []
+
     async def get_complete_tender_data(self, cnpj: str, year: int, sequential: int) -> Dict[str, Any]:
         """Get complete tender data including items and results"""
         tender_data = {
