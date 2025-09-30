@@ -131,9 +131,9 @@ class TenderDiscoveryEngine:
         logger.info(f"Discovering tenders for {state_name} ({state_code})")
 
         try:
-            # Discover raw tenders
+            # Discover raw tenders (limit to 500 for testing)
             raw_tenders = await self.api_client.discover_tenders_for_state(
-                state_code, start_date, end_date, self.config.allowed_modalities
+                state_code, start_date, end_date, self.config.allowed_modalities, max_tenders=500
             )
 
             state_stats.total_found = len(raw_tenders)
@@ -356,22 +356,21 @@ class TenderDiscoveryEngine:
 
 
 # Utility functions for discovery management
-async def create_discovery_engine(db_manager: CloudSQLManager, username: str = None,
-                                password: str = None, config: ProcessingConfig = None) -> TenderDiscoveryEngine:
+async def create_discovery_engine(db_manager: CloudSQLManager,
+                                config: ProcessingConfig = None) -> TenderDiscoveryEngine:
     """Create configured discovery engine"""
 
-    api_client = PNCPAPIClient(username, password)
+    api_client = PNCPAPIClient()
     classifier = TenderClassifier()
     db_ops = DatabaseOperations(db_manager)
 
     return TenderDiscoveryEngine(api_client, classifier, db_ops, config)
 
 async def run_full_state_discovery(states: List[str], start_date: str, end_date: str,
-                                 db_manager: CloudSQLManager, username: str = None,
-                                 password: str = None) -> DiscoveryStats:
+                                 db_manager: CloudSQLManager) -> DiscoveryStats:
     """Run complete discovery for specified states"""
 
-    async with PNCPAPIClient(username, password) as api_client:
+    async with PNCPAPIClient() as api_client:
         classifier = TenderClassifier()
         db_ops = DatabaseOperations(db_manager)
 

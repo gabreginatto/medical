@@ -43,8 +43,9 @@ This system automatically:
 
 - Python 3.9+
 - Google Cloud Project with Cloud SQL
-- PNCP API credentials
 - Fernandes product catalog
+
+**Note:** PNCP API credentials are NOT required - the Consultation API is public and does not require authentication.
 
 ### 2. Installation
 
@@ -65,10 +66,6 @@ pip install asyncpg google-cloud-sql-connector
 Create a `.env` file:
 
 ```env
-# PNCP API Credentials
-PNCP_USERNAME=your_username
-PNCP_PASSWORD=your_password
-
 # Google Cloud Configuration
 GOOGLE_CLOUD_PROJECT=medical-473219
 CLOUD_SQL_REGION=us-central1
@@ -333,12 +330,13 @@ await processor.generate_reports(discovery_stats, item_results)
 
 ### Common Issues
 
-1. **Authentication Failed**
+1. **API Connection Error**
    ```
-   Error: Authentication failed: 401 - Invalid credentials
+   Error: Failed to connect to PNCP API
    ```
-   - Verify PNCP_USERNAME and PNCP_PASSWORD
-   - Check if account has API access
+   - Check your internet connection
+   - Verify the PNCP API is accessible (https://pncp.gov.br/api/consulta)
+   - Check if there are any firewall restrictions
 
 2. **Database Connection Error**
    ```
@@ -424,6 +422,45 @@ For issues and questions:
 
 ---
 
+## 🔄 Version History
+
+### V1 (September 2025)
+**Current Status: Development & Testing Phase**
+
+✅ **Completed:**
+- PNCP API integration with public consultation endpoints (no authentication required)
+- Google Cloud SQL database setup with IAM authentication
+- Complete database schema with 6 core tables
+- Tender classification system (government level, organization type, medical relevance)
+- Rate limiting and error handling for API requests
+- Product matching framework
+- Test infrastructure (`tests/test_sp_process.py`)
+
+🚧 **In Progress:**
+- Fine-tuning medical relevance classifier thresholds
+- Testing with real São Paulo state tender data
+- Optimizing query parameters for completed tenders discovery
+
+📋 **Known Issues:**
+- Need to expand tender discovery limits to find medical-relevant tenders
+- API returns many non-medical tenders requiring filtering
+- Session cleanup warnings in async operations (non-critical)
+
+**Next Steps:**
+1. Expand tender discovery to larger sample sizes (500-1000 tenders)
+2. Test across multiple modalities (Pregão Eletrônico, Dispensa)
+3. Validate product matching accuracy
+4. Begin price competitiveness analysis testing
+5. Set up Notion integration for live dashboards
+
+**Technical Details:**
+- Database: Cloud SQL PostgreSQL (us-central1)
+- API: PNCP Consultation API (public, no auth)
+- Language: Python 3.9+ with async/await
+- Key Libraries: aiohttp, asyncpg, google-cloud-sql-connector
+
+---
+
 **Built for competitive intelligence in Brazilian medical supply markets** 🇧🇷
 
-Last updated: January 2025
+Last updated: September 2025

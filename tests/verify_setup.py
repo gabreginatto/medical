@@ -146,8 +146,11 @@ def check_environment():
         print("⚠️  .env file not found - Copy from .env.example and configure")
 
     # Check critical environment variables
-    critical_vars = ['PNCP_USERNAME', 'PNCP_PASSWORD', 'GOOGLE_CLOUD_PROJECT']
+    # Note: PNCP API does not require authentication
+    critical_vars = ['GOOGLE_CLOUD_PROJECT']
     configured_vars = 0
+
+    print("ℹ️  PNCP API - No credentials required (public API)")
 
     for var in critical_vars:
         if os.getenv(var):

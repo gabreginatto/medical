@@ -102,16 +102,11 @@ class PNCPMedicalProcessor:
         """Initialize PNCP API client and test connection"""
         logger.info("Initializing API client...")
 
-        username = os.getenv('PNCP_USERNAME')
-        password = os.getenv('PNCP_PASSWORD')
-
-        if not username or not password:
-            raise ValueError("PNCP_USERNAME and PNCP_PASSWORD environment variables required")
-
-        self.api_client = PNCPAPIClient(username, password)
+        # Note: PNCP Consultation API does not require authentication
+        self.api_client = PNCPAPIClient()
 
         # Test connection
-        success = await test_api_connection(username, password)
+        success = await test_api_connection()
         if not success:
             raise RuntimeError("Failed to connect to PNCP API")
 

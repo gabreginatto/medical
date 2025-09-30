@@ -1,51 +1,19 @@
 """
-PNCP API Client with Authentication and Rate Limiting
-Handles all interactions with the PNCP API including login, token management, and data retrieval
+PNCP API Client with Rate Limiting
+Handles all interactions with the PNCP Consultation API
+Note: The PNCP Consultation API does not require authentication
 """
 
 import asyncio
 import aiohttp
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
 import time
-import os
 from config import APIConfig, ProcessingConfig
 
 logger = logging.getLogger(__name__)
-
-@dataclass
-class AuthToken:
-    """Authentication token with expiration tracking"""
-    token: str
-    expires_at: datetime
-    refresh_token: Optional[str] = None
-    user_id: Optional[str] = None
-
-    def is_expired(self, buffer_minutes: int = 5) -> bool:
-        """Check if token is expired (with buffer for refresh)"""
-        return datetime.now() + timedelta(minutes=buffer_minutes) >= self.expires_at
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for storage"""
-        return {
-            'token': self.token,
-            'expires_at': self.expires_at.isoformat(),
-            'refresh_token': self.refresh_token,
-            'user_id': self.user_id
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AuthToken':
-        """Create from dictionary"""
-        return cls(
-            token=data['token'],
-            expires_at=datetime.fromisoformat(data['expires_at']),
-            refresh_token=data.get('refresh_token'),
-            user_id=data.get('user_id')
-        )
 
 class RateLimiter:
     """Simple rate limiter for API requests"""
@@ -85,16 +53,11 @@ class RateLimiter:
         self.hour_requests.append(now)
 
 class PNCPAPIClient:
-    """PNCP API client with authentication and rate limiting"""
+    """PNCP API client with rate limiting (no authentication required)"""
 
-    def __init__(self, username: str = None, password: str = None,
-                 rate_limiter: RateLimiter = None):
-        self.username = username or os.getenv('PNCP_USERNAME')
-        self.password = password or os.getenv('PNCP_PASSWORD')
-        self.base_url = APIConfig.BASE_URL
+    def __init__(self, rate_limiter: RateLimiter = None):
         self.consultation_url = APIConfig.CONSULTATION_BASE_URL
         self.session: Optional[aiohttp.ClientSession] = None
-        self.auth_token: Optional[AuthToken] = None
         self.rate_limiter = rate_limiter or RateLimiter(
             ProcessingConfig().max_requests_per_minute,
             ProcessingConfig().max_requests_per_hour
@@ -135,17 +98,6 @@ class PNCPAPIClient:
         while retries < APIConfig.MAX_RETRIES:
             try:
                 async with self.session.request(method, url, **kwargs) as response:
-                    if response.status == 401 and self.auth_token:
-                        # Token expired, try to refresh
-                        logger.info("Token expired, attempting to refresh")
-                        await self.authenticate()
-                        # Update headers with new token
-                        if 'headers' not in kwargs:
-                            kwargs['headers'] = {}
-                        kwargs['headers']['Authorization'] = f'Bearer {self.auth_token.token}'
-                        # Retry the request
-                        continue
-
                     if response.status == 429:  # Rate limited
                         wait_time = min(2 ** retries * APIConfig.RETRY_DELAY, 60)
                         logger.warning(f"Rate limited, waiting {wait_time} seconds")
@@ -173,68 +125,31 @@ class PNCPAPIClient:
 
         return 500, {'error': 'Max retries exceeded'}
 
-    async def authenticate(self) -> bool:
-        """Authenticate with PNCP API and get bearer token"""
-        if not self.username or not self.password:
-            raise ValueError("Username and password required for authentication")
-
-        login_url = f"{self.base_url}{APIConfig.LOGIN_ENDPOINT}"
-        login_data = {
-            "login": self.username,
-            "senha": self.password
-        }
-
-        status, response = await self._make_request(
-            'POST',
-            login_url,
-            json=login_data,
-            headers={'Content-Type': 'application/json'}
-        )
-
-        if status == 200:
-            # Successful login - extract token
-            token = response.get('token') or response.get('access_token')
-            if token:
-                # Estimate token expiration (typically 1 hour for PNCP)
-                expires_at = datetime.now() + timedelta(hours=1)
-                self.auth_token = AuthToken(
-                    token=token,
-                    expires_at=expires_at,
-                    user_id=response.get('id') or response.get('user_id')
-                )
-                logger.info("Successfully authenticated with PNCP API")
-                return True
-            else:
-                logger.error("Login successful but no token in response")
-                return False
-        else:
-            error_msg = response.get('message', 'Unknown error')
-            logger.error(f"Authentication failed: {status} - {error_msg}")
-            return False
-
-    def _get_auth_headers(self) -> Dict[str, str]:
-        """Get headers with authentication token"""
-        headers = {'Accept': 'application/json'}
-        if self.auth_token and not self.auth_token.is_expired():
-            headers['Authorization'] = f'Bearer {self.auth_token.token}'
-        return headers
+    def _get_headers(self) -> Dict[str, str]:
+        """Get standard headers for API requests"""
+        return {'Accept': 'application/json'}
 
     async def get_tenders_by_publication_date(self, start_date: str, end_date: str,
                                             modality_code: int, state: str = None,
                                             municipality_code: str = None,
                                             cnpj: str = None, page: int = 1,
-                                            page_size: int = 100) -> Tuple[int, Dict[str, Any]]:
+                                            page_size: int = 10) -> Tuple[int, Dict[str, Any]]:
         """Get tenders by publication date using consultation API"""
 
         url = f"{self.consultation_url}/v1/contratacoes/publicacao"
+
+        # Ensure page size is within API limits (10-500)
+        final_page_size = max(APIConfig.MIN_PAGE_SIZE, min(page_size, APIConfig.MAX_PAGE_SIZE))
 
         params = {
             'dataInicial': start_date,
             'dataFinal': end_date,
             'codigoModalidadeContratacao': modality_code,
             'pagina': page,
-            'tamanhoPagina': min(page_size, APIConfig.MAX_PAGE_SIZE)
+            'tamanhoPagina': final_page_size
         }
+
+        logger.debug(f"API request params: {params}")
 
         if state:
             params['uf'] = state
@@ -247,51 +162,48 @@ class PNCPAPIClient:
 
     async def get_tender_items(self, cnpj: str, year: int, sequential: int) -> Tuple[int, Dict[str, Any]]:
         """Get all items for a specific tender"""
-        if not self.auth_token or self.auth_token.is_expired():
-            authenticated = await self.authenticate()
-            if not authenticated:
-                return 401, {'error': 'Authentication failed'}
-
-        url = f"{self.base_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
-        headers = self._get_auth_headers()
+        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
+        headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
 
     async def get_item_results(self, cnpj: str, year: int, sequential: int,
                              item_number: int) -> Tuple[int, Dict[str, Any]]:
         """Get results (bids) for a specific item"""
-        if not self.auth_token or self.auth_token.is_expired():
-            authenticated = await self.authenticate()
-            if not authenticated:
-                return 401, {'error': 'Authentication failed'}
-
-        url = f"{self.base_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados"
-        headers = self._get_auth_headers()
+        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados"
+        headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
 
     async def get_specific_item_result(self, cnpj: str, year: int, sequential: int,
                                      item_number: int, result_sequential: int) -> Tuple[int, Dict[str, Any]]:
         """Get specific result details for an item"""
-        if not self.auth_token or self.auth_token.is_expired():
-            authenticated = await self.authenticate()
-            if not authenticated:
-                return 401, {'error': 'Authentication failed'}
-
-        url = f"{self.base_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados/{result_sequential}"
-        headers = self._get_auth_headers()
+        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados/{result_sequential}"
+        headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
 
     async def discover_tenders_for_state(self, state_code: str, start_date: str, end_date: str,
-                                       modalities: List[int] = None) -> List[Dict[str, Any]]:
-        """Discover all tenders for a specific state within date range"""
+                                       modalities: List[int] = None, max_tenders: int = None) -> List[Dict[str, Any]]:
+        """Discover tenders for a specific state within date range
+
+        Args:
+            state_code: State code (e.g., 'SP')
+            start_date: Start date in YYYYMMDD format
+            end_date: End date in YYYYMMDD format
+            modalities: List of modality codes (default: [4, 6, 8])
+            max_tenders: Maximum number of tenders to retrieve (None = all)
+        """
         if modalities is None:
             modalities = [4, 6, 8]  # Electronic tenders, Pregão, Dispensa
 
         all_tenders = []
 
         for modality in modalities:
+            if max_tenders and len(all_tenders) >= max_tenders:
+                logger.info(f"Reached max_tenders limit ({max_tenders}), stopping discovery")
+                break
+
             page = 1
             has_more = True
 
@@ -304,14 +216,25 @@ class PNCPAPIClient:
                     if status == 200:
                         data = response.get('data', [])
                         if data:
+                            # Limit tenders if max_tenders is set
+                            if max_tenders:
+                                remaining = max_tenders - len(all_tenders)
+                                data = data[:remaining]
+
                             all_tenders.extend(data)
+
+                            logger.info(f"Retrieved page {page-1} for {state_code}, modality {modality}: {len(data)} tenders (total: {len(all_tenders)})")
+
+                            # Stop if we've reached the limit
+                            if max_tenders and len(all_tenders) >= max_tenders:
+                                logger.info(f"Reached max_tenders limit ({max_tenders})")
+                                has_more = False
+                                break
 
                             # Check if there are more pages
                             pages_remaining = response.get('paginasRestantes', 0)
                             has_more = pages_remaining > 0
                             page += 1
-
-                            logger.info(f"Retrieved page {page-1} for {state_code}, modality {modality}: {len(data)} tenders")
                         else:
                             has_more = False
                     else:
@@ -373,63 +296,30 @@ class PNCPAPIClient:
 
         return tender_data
 
-    def save_token(self, filepath: str):
-        """Save authentication token to file"""
-        if self.auth_token:
-            with open(filepath, 'w') as f:
-                json.dump(self.auth_token.to_dict(), f)
-
-    def load_token(self, filepath: str) -> bool:
-        """Load authentication token from file"""
-        try:
-            if os.path.exists(filepath):
-                with open(filepath, 'r') as f:
-                    token_data = json.load(f)
-                    self.auth_token = AuthToken.from_dict(token_data)
-
-                    if not self.auth_token.is_expired():
-                        logger.info("Loaded valid authentication token")
-                        return True
-                    else:
-                        logger.info("Loaded token is expired")
-                        self.auth_token = None
-        except Exception as e:
-            logger.error(f"Error loading token: {e}")
-
-        return False
-
-
 # Utility functions
-async def test_api_connection(username: str = None, password: str = None) -> bool:
-    """Test API connection and authentication"""
-    async with PNCPAPIClient(username, password) as client:
-        success = await client.authenticate()
-        if success:
-            # Test a simple consultation API call
-            status, response = await client.get_tenders_by_publication_date(
-                start_date='20240101',
-                end_date='20240102',
-                modality_code=8,  # Dispensa
-                state='DF',
-                page=1
-            )
+async def test_api_connection() -> bool:
+    """Test API connection (no authentication required)"""
+    async with PNCPAPIClient() as client:
+        # Test a simple consultation API call
+        status, response = await client.get_tenders_by_publication_date(
+            start_date='20240101',
+            end_date='20240102',
+            modality_code=8,  # Dispensa
+            state='DF',
+            page=1
+        )
 
-            if status == 200:
-                logger.info(f"API test successful, found {response.get('totalRegistros', 0)} tenders")
-                return True
-            else:
-                logger.error(f"API test failed: {status} - {response}")
-                return False
+        if status == 200:
+            logger.info(f"API test successful, found {response.get('totalRegistros', 0)} tenders")
+            return True
         else:
-            logger.error("Authentication failed")
+            logger.error(f"API test failed: {status} - {response}")
             return False
 
-async def discover_tenders_for_multiple_states(states: List[str], start_date: str, end_date: str,
-                                             username: str = None, password: str = None) -> Dict[str, List[Dict]]:
+async def discover_tenders_for_multiple_states(states: List[str], start_date: str, end_date: str) -> Dict[str, List[Dict]]:
     """Discover tenders for multiple states concurrently"""
 
-    async with PNCPAPIClient(username, password) as client:
-        await client.authenticate()
+    async with PNCPAPIClient() as client:
 
         tasks = []
         for state in states:

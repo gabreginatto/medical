@@ -169,7 +169,7 @@ class DatabaseConfig:
 
     # Connection options
     USE_IAM_AUTH = True  # Use IAM database authentication
-    USE_PRIVATE_IP = True  # Connect via private IP
+    USE_PRIVATE_IP = False  # Connect via private IP
 
     # SSL settings
     SSL_MODE = "require"
@@ -196,6 +196,7 @@ class APIConfig:
     RETRY_DELAY = 1  # seconds
 
     # Response pagination
+    MIN_PAGE_SIZE = 10  # API minimum requirement
     DEFAULT_PAGE_SIZE = 100
     MAX_PAGE_SIZE = 500
 

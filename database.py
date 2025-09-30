@@ -51,15 +51,27 @@ class CloudSQLManager:
 
     async def get_connection(self):
         """Get async database connection using Cloud SQL connector"""
-        return await self.connector.connect_async(
-            instance_connection_string=self.connection_name,
-            driver="asyncpg",
-            user=os.getenv('DB_USER', 'postgres') if not DatabaseConfig.USE_IAM_AUTH else None,
-            password=os.getenv('DB_PASSWORD', '') if not DatabaseConfig.USE_IAM_AUTH else None,
-            database=self.database_name,
-            enable_iam_auth=DatabaseConfig.USE_IAM_AUTH,
-            ip_type="private" if os.getenv('USE_PRIVATE_IP', 'true').lower() == 'true' else "public"
-        )
+        # For IAM auth, user should be the service account email or use default 'postgres'
+        # For now, we'll use regular postgres user with password
+        db_user = os.getenv('DB_USER', 'postgres')
+        db_password = os.getenv('DB_PASSWORD', '')
+
+        connection_params = {
+            'instance_connection_string': self.connection_name,
+            'driver': "asyncpg",
+            'user': db_user,
+            'db': self.database_name,  # asyncpg uses 'db' not 'database'
+            'ip_type': "private" if os.getenv('USE_PRIVATE_IP', 'true').lower() == 'true' else "public"
+        }
+
+        # Only add password if not using IAM auth
+        if not DatabaseConfig.USE_IAM_AUTH and db_password:
+            connection_params['password'] = db_password
+
+        if DatabaseConfig.USE_IAM_AUTH:
+            connection_params['enable_iam_auth'] = True
+
+        return await self.connector.connect_async(**connection_params)
 
     def create_sync_engine(self):
         """Create synchronous SQLAlchemy engine"""
@@ -380,13 +392,16 @@ class DatabaseOperations:
     async def log_processing_start(self, process_type: str, state_code: str = None,
                                   metadata: Dict = None) -> int:
         """Log start of processing operation"""
+        import json
         conn = await self.db_manager.get_connection()
         try:
+            # Convert metadata dict to JSON string for JSONB column
+            metadata_json = json.dumps(metadata) if metadata else None
             log_id = await conn.fetchval("""
                 INSERT INTO processing_log (process_type, state_code, start_time, status, metadata)
                 VALUES ($1, $2, CURRENT_TIMESTAMP, 'running', $3)
                 RETURNING id
-            """, process_type, state_code, metadata)
+            """, process_type, state_code, metadata_json)
             return log_id
         finally:
             await conn.close()
