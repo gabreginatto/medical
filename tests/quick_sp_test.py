@@ -80,7 +80,7 @@ async def quick_test():
         db_manager = create_db_manager_from_env()
         db_ops = DatabaseOperations(db_manager)
 
-        api_client = PNCPAPIClient()
+        api_client = PNCPAPIClient(max_concurrent_requests=config.max_concurrent_requests)
         await api_client.start_session()
 
         classifier = TenderClassifier()
