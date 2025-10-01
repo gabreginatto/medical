@@ -199,7 +199,8 @@ class OptimizedTenderDiscovery:
                     continue
 
                 # Apply value filters
-                homologated_value = tender.get('valorTotalHomologado', 0)
+                homologated_value = tender.get('valorTotalHomologado') or 0
+                # Skip if value is None or below minimum
                 if homologated_value < self.config.min_tender_value:
                     continue
 

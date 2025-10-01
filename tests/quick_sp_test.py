@@ -44,28 +44,28 @@ async def quick_test():
     # OPTIMIZED Configuration for speed
     config = ProcessingConfig(
         enabled_states=['SP'],
-        min_tender_value=10_000.0,  # Focus on substantial tenders (more likely medical)
+        min_tender_value=5_000.0,  # Lower threshold for more results
         max_tender_value=2_000_000.0,
-        min_match_score=50.0,  # Higher threshold = fewer but better matches
-        allowed_modalities=[6],  # Only Pregão Eletrônico (fastest to process)
+        min_match_score=40.0,  # Lower threshold = more matches
+        allowed_modalities=[6, 8],  # Pregão + Dispensa for more variety
         use_org_cache=True,  # Use cache to identify medical orgs faster
         catmat_boost_enabled=True  # Prioritize CATMAT-coded items
     )
 
-    # Use recent past dates with real data (avoiding future dates)
-    # Using September 2024 when PNCP had active data
-    end_date = datetime(2024, 9, 30)
-    start_date = datetime(2024, 9, 16)  # 14 days prior
+    # Use August-September 2024 when PNCP had completed tenders
+    # Going back further to find completed tenders with items
+    end_date = datetime(2024, 9, 15)
+    start_date = datetime(2024, 8, 15)  # 31 days prior
 
     # Format dates correctly for PNCP API (YYYYMMDD)
     start_date_str = start_date.strftime('%Y%m%d')
     end_date_str = end_date.strftime('%Y%m%d')
 
-    print(f"\n🔍 Using September 2024 data (when PNCP was active)")
+    print(f"\n🔍 Using August-September 2024 data (completed tenders)")
     print(f"   Start: {start_date_str} ({start_date.strftime('%Y-%m-%d')})")
     print(f"   End: {end_date_str} ({end_date.strftime('%Y-%m-%d')})")
 
-    print(f"\n📅 Date Range: {start_date_str} to {end_date_str} (14 days - FAST)")
+    print(f"\n📅 Date Range: {start_date_str} to {end_date_str} (31 days)")
     print(f"📍 State: São Paulo (SP)")
     print(f"🎯 Target: Get at least 5 completed medical tenders quickly")
     print(f"⚡ Optimizations: Short date range, high score threshold, cache enabled")
@@ -230,9 +230,9 @@ async def quick_test():
 
         print("\n✅ Quick test completed!")
         print("\n💡 To get more tenders:")
-        print("   - Increase date range: days=14 → days=30")
-        print("   - Lower min_match_score: 50.0 → 40.0")
-        print("   - Add more modalities: [6] → [6, 8]")
+        print("   - Increase date range: 31 days → 60 days")
+        print("   - Lower min_match_score: 40.0 → 30.0")
+        print("   - Try different time periods (earlier months may have more completed tenders)")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
