@@ -237,6 +237,7 @@ CREATE INDEX IF NOT EXISTS idx_organizations_state ON organizations(state_code);
 CREATE INDEX IF NOT EXISTS idx_organizations_gov_level ON organizations(government_level);
 
 CREATE INDEX IF NOT EXISTS idx_tenders_cnpj_ano_seq ON tenders(cnpj, ano, sequencial);
+CREATE INDEX IF NOT EXISTS idx_tenders_control_number ON tenders(control_number);
 CREATE INDEX IF NOT EXISTS idx_tenders_state ON tenders(state_code);
 CREATE INDEX IF NOT EXISTS idx_tenders_gov_level ON tenders(government_level);
 CREATE INDEX IF NOT EXISTS idx_tenders_publication_date ON tenders(publication_date);
@@ -409,6 +410,58 @@ class DatabaseOperations:
 
             rows = await conn.fetch(query, *params)
             return [dict(row) for row in rows]
+        finally:
+            await conn.close()
+
+    async def filter_new_tenders(self, fetched_tenders: List[Dict]) -> List[Dict]:
+        """
+        Filter out tenders that already exist in database by control number.
+        Returns only NEW tenders that haven't been processed yet.
+
+        This enables efficient deduplication across different states, dates, and modalities.
+        """
+        if not fetched_tenders:
+            return []
+
+        # Extract control numbers from fetched tenders
+        control_numbers = []
+        for t in fetched_tenders:
+            control_num = t.get('numeroControlePNCP')
+            if control_num:
+                control_numbers.append(control_num)
+
+        if not control_numbers:
+            logger.warning("No control numbers found in fetched tenders")
+            return fetched_tenders
+
+        conn = await self.db_manager.get_connection()
+        try:
+            # Query database for existing tenders by control number
+            query = """
+                SELECT control_number
+                FROM tenders
+                WHERE control_number = ANY($1)
+            """
+
+            existing_rows = await conn.fetch(query, control_numbers)
+            existing_set = {row['control_number'] for row in existing_rows}
+
+            # Filter to only new tenders
+            new_tenders = [
+                t for t in fetched_tenders
+                if t.get('numeroControlePNCP') not in existing_set
+            ]
+
+            duplicates_count = len(fetched_tenders) - len(new_tenders)
+
+            logger.info(
+                f"Tender deduplication: {len(fetched_tenders)} fetched → "
+                f"{len(new_tenders)} new, {duplicates_count} already in DB "
+                f"({duplicates_count/len(fetched_tenders)*100:.1f}% duplicates)"
+            )
+
+            return new_tenders
+
         finally:
             await conn.close()
 

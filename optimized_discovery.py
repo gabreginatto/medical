@@ -120,8 +120,15 @@ class OptimizedTenderDiscovery:
         raw_tenders = await self._stage1_bulk_fetch(state, start_date, end_date)
         logger.info(f"📥 Stage 1 complete: {len(raw_tenders)} tenders fetched")
 
+        # DEDUPLICATION: Filter out tenders already in database (by control number)
+        new_tenders = await self.db_ops.filter_new_tenders(raw_tenders)
+        duplicates_filtered = len(raw_tenders) - len(new_tenders)
+        if duplicates_filtered > 0:
+            logger.info(f"🔄 Deduplication: {duplicates_filtered} tenders already in DB, "
+                       f"{len(new_tenders)} new tenders to process")
+
         # STAGE 2: Quick filter (zero API calls)
-        quick_filtered = await self._stage2_quick_filter(raw_tenders)
+        quick_filtered = await self._stage2_quick_filter(new_tenders)
         logger.info(f"🔍 Stage 2 complete: {len(quick_filtered)} tenders retained "
                    f"({self.metrics.stage2_quick_filter.reduction_percent:.1f}% filtered out)")
 
