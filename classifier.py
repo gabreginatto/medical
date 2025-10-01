@@ -5,7 +5,7 @@ Classifies tenders by government level, size, organization type, and relevance t
 
 import re
 import logging
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Any
 from dataclasses import dataclass
 from config import (
     GovernmentLevel, TenderSize, OrganizationType,

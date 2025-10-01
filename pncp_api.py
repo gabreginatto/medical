@@ -212,7 +212,7 @@ class PNCPAPIClient:
             while has_more:
                 try:
                     status, response = await self.get_tenders_by_publication_date(
-                        start_date, end_date, modality, state_code, page=page, page_size=APIConfig.DEFAULT_PAGE_SIZE
+                        start_date, end_date, modality, state_code, page=page, page_size=20
                     )
 
                     if status == 200:
