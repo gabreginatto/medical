@@ -194,7 +194,7 @@ class OptimizedTenderDiscovery:
 
                 if should_reject:
                     # Cache as non-medical
-                    cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
+                    cnpj = self._normalize_cnpj(tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', ''))
                     self.non_medical_orgs_cache.add(cnpj)
                     continue
 
@@ -246,7 +246,8 @@ class OptimizedTenderDiscovery:
 
             async with semaphore:
                 try:
-                    cnpj = tender.get('cnpj', '')
+                    # Extract CNPJ from nested structure
+                    cnpj = tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', '')
                     year = tender.get('ano') or tender.get('anoCompra')
                     sequential = tender.get('sequencial') or tender.get('sequencialCompra')
 
@@ -304,7 +305,7 @@ class OptimizedTenderDiscovery:
         # If we found 2+ medical tenders from same org, trust it
         org_tender_counts = {}
         for tender in confirmed:
-            cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
+            cnpj = self._normalize_cnpj(tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', ''))
             org_tender_counts[cnpj] = org_tender_counts.get(cnpj, 0) + 1
 
         # Check remaining tenders for auto-approval
@@ -312,7 +313,7 @@ class OptimizedTenderDiscovery:
         remaining_tenders = [t for t in tenders if t.get('numeroControlePNCPCompra') not in confirmed_control_numbers]
 
         for tender in remaining_tenders:
-            cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
+            cnpj = self._normalize_cnpj(tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', ''))
             if cnpj in org_tender_counts and org_tender_counts[cnpj] >= 2:
                 tender['medical_confidence'] = 80
                 tender['auto_approved'] = True
