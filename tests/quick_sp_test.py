@@ -116,6 +116,55 @@ async def quick_test():
         # Print metrics
         print_metrics_summary(metrics)
 
+        # Save tenders to JSON file for review
+        import json
+        output_file = 'approved_tenders.json'
+
+        # Create serializable version (remove non-JSON objects)
+        serializable_tenders = []
+        for tender in medical_tenders:
+            clean_tender = {}
+            for key, value in tender.items():
+                # Skip keys we know contain complex objects
+                if key in ['classification', 'classifier_result']:
+                    continue
+                # Only include basic JSON-compatible types
+                if isinstance(value, (str, int, float, bool, type(None))):
+                    clean_tender[key] = value
+                elif isinstance(value, (list, dict)):
+                    # Only include if all nested values are JSON-serializable
+                    try:
+                        import json
+                        json.dumps(value)
+                        clean_tender[key] = value
+                    except (TypeError, ValueError):
+                        # Skip if not JSON-serializable
+                        continue
+            serializable_tenders.append(clean_tender)
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(serializable_tenders, f, indent=2, ensure_ascii=False)
+        print(f"\n   💾 Saved {len(serializable_tenders)} tenders to {output_file}")
+
+        # Print breakdown by approval method
+        auto_approved = [t for t in medical_tenders if t.get('auto_approved')]
+        sampled = [t for t in medical_tenders if not t.get('auto_approved')]
+
+        print(f"\n   📊 Approval Breakdown:")
+        print(f"      Auto-approved: {len(auto_approved)}")
+        print(f"      Sampled & verified: {len(sampled)}")
+
+        if auto_approved:
+            # Count by approval reason
+            reasons = {}
+            for t in auto_approved:
+                reason = t.get('approval_reason', 'unknown')
+                reasons[reason] = reasons.get(reason, 0) + 1
+
+            print(f"\n   📋 Auto-approval reasons:")
+            for reason, count in reasons.items():
+                print(f"      {reason}: {count}")
+
         if len(medical_tenders) == 0:
             print("\n   ⚠️  No medical tenders found. Try:")
             print("      - Increasing date range (change days=14 to days=30)")
