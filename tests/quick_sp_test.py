@@ -116,35 +116,37 @@ async def quick_test():
         # Print metrics
         print_metrics_summary(metrics)
 
-        # Save tenders to JSON file for review
+        # Save tenders to separate JSON files for analysis
         import json
-        output_file = 'approved_tenders.json'
 
-        # Create serializable version (remove non-JSON objects)
-        serializable_tenders = []
-        for tender in medical_tenders:
-            clean_tender = {}
-            for key, value in tender.items():
-                # Skip keys we know contain complex objects
-                if key in ['classification', 'classifier_result']:
-                    continue
-                # Only include basic JSON-compatible types
-                if isinstance(value, (str, int, float, bool, type(None))):
-                    clean_tender[key] = value
-                elif isinstance(value, (list, dict)):
-                    # Only include if all nested values are JSON-serializable
-                    try:
-                        import json
-                        json.dumps(value)
-                        clean_tender[key] = value
-                    except (TypeError, ValueError):
-                        # Skip if not JSON-serializable
-                        continue
-            serializable_tenders.append(clean_tender)
+        def clean_tender(tender):
+            """Extract key fields for analysis"""
+            return {
+                'objetoCompra': tender.get('objetoCompra', ''),
+                'orgaoEntidade': tender.get('orgaoEntidade', {}).get('razaoSocial', ''),
+                'valorTotalEstimado': tender.get('valorTotalEstimado', 0),
+                'valorTotalHomologado': tender.get('valorTotalHomologado', 0),
+                'medical_confidence': tender.get('medical_confidence', 0),
+                'quick_filter_score': tender.get('quick_filter_score', 0),
+                'approval_reason': tender.get('approval_reason', 'N/A'),
+                'auto_approved': tender.get('auto_approved', False),
+                'numeroControlePNCP': tender.get('numeroControlePNCP', ''),
+                'anoCompra': tender.get('anoCompra'),
+                'modalidadeNome': tender.get('modalidadeNome', '')
+            }
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(serializable_tenders, f, indent=2, ensure_ascii=False)
-        print(f"\n   💾 Saved {len(serializable_tenders)} tenders to {output_file}")
+        auto_approved_list = [clean_tender(t) for t in medical_tenders if t.get('auto_approved')]
+        sampled_list = [clean_tender(t) for t in medical_tenders if not t.get('auto_approved')]
+
+        # Save auto-approved tenders
+        with open('auto_approved_tenders.json', 'w', encoding='utf-8') as f:
+            json.dump(auto_approved_list, f, indent=2, ensure_ascii=False)
+        print(f"\n   💾 Saved {len(auto_approved_list)} auto-approved tenders to auto_approved_tenders.json")
+
+        # Save sampled tenders
+        with open('sampled_tenders.json', 'w', encoding='utf-8') as f:
+            json.dump(sampled_list, f, indent=2, ensure_ascii=False)
+        print(f"   💾 Saved {len(sampled_list)} sampled tenders to sampled_tenders.json")
 
         # Print breakdown by approval method
         auto_approved = [t for t in medical_tenders if t.get('auto_approved')]

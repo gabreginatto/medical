@@ -145,8 +145,13 @@ class ProcessingConfig:
             self.government_levels = [GovernmentLevel.FEDERAL, GovernmentLevel.STATE, GovernmentLevel.MUNICIPAL]
 
         if self.allowed_modalities is None:
-            # Focus on electronic bidding modalities most likely to have medical supplies
-            self.allowed_modalities = [4, 6, 8]  # Concorrência Eletrônica, Pregão Eletrônico, Dispensa
+            # Focus on modalities with high medical relevance and reliable item data
+            # 1: Concorrência (large equipment/infrastructure)
+            # 6: Pregão Eletrônico (most common, 80% of medical procurement)
+            # 9: Inexigibilidade (specialized/patented products)
+            # 12: Registro de Preços (ongoing supply contracts)
+            # Removed: 8 (Dispensa) - high rejection rate due to missing item data
+            self.allowed_modalities = [1, 6, 9, 12]
 
         if self.allowed_org_types is None:
             self.allowed_org_types = [
