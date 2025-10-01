@@ -223,7 +223,7 @@ class PNCPAPIClient:
 
                             all_tenders.extend(data)
 
-                            logger.info(f"Retrieved page {page-1} for {state_code}, modality {modality}: {len(data)} tenders (total: {len(all_tenders)})")
+                            logger.info(f"Retrieved page {page} for {state_code}, modality {modality}: {len(data)} tenders (total: {len(all_tenders)})")
 
                             # Stop if we've reached the limit
                             if max_tenders and len(all_tenders) >= max_tenders:

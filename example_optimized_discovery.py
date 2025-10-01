@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from config import ProcessingConfig
 from pncp_api import PNCPAPIClient
 from classifier import TenderClassifier
-from database import CloudSQLManager, DatabaseOperations
+from database import CloudSQLManager, DatabaseOperations, create_db_manager_from_env
 from optimized_discovery import OptimizedTenderDiscovery, print_metrics_summary
 from analytics import MedicalProcurementAnalytics, print_analytics_report
 from org_cache import get_org_cache, print_cache_statistics
@@ -52,12 +52,7 @@ async def example_1_single_state_optimized():
     await api_client.start_session()
 
     classifier = TenderClassifier()
-    db_manager = CloudSQLManager(
-        project_id='medical-473219',
-        region='us-central1',
-        instance_name='pncp-medical-db',
-        database_name='pncp_medical_data'
-    )
+    db_manager = create_db_manager_from_env()
     db_ops = DatabaseOperations(db_manager)
 
     # Create optimized discovery engine
@@ -127,12 +122,7 @@ async def example_2_multiple_states_parallel():
     await api_client.start_session()
 
     classifier = TenderClassifier()
-    db_manager = CloudSQLManager(
-        project_id='medical-473219',
-        region='us-central1',
-        instance_name='pncp-medical-db',
-        database_name='pncp_medical_data'
-    )
+    db_manager = create_db_manager_from_env()
     db_ops = DatabaseOperations(db_manager)
 
     try:
@@ -194,12 +184,7 @@ async def example_3_high_value_with_catmat():
     await api_client.start_session()
 
     classifier = TenderClassifier()
-    db_manager = CloudSQLManager(
-        project_id='medical-473219',
-        region='us-central1',
-        instance_name='pncp-medical-db',
-        database_name='pncp_medical_data'
-    )
+    db_manager = create_db_manager_from_env()
     db_ops = DatabaseOperations(db_manager)
 
     discovery_engine = OptimizedTenderDiscovery(
@@ -260,12 +245,7 @@ async def example_4_with_analytics():
     await api_client.start_session()
 
     classifier = TenderClassifier()
-    db_manager = CloudSQLManager(
-        project_id='medical-473219',
-        region='us-central1',
-        instance_name='pncp-medical-db',
-        database_name='pncp_medical_data'
-    )
+    db_manager = create_db_manager_from_env()
     db_ops = DatabaseOperations(db_manager)
 
     discovery_engine = OptimizedTenderDiscovery(

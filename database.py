@@ -60,7 +60,7 @@ class CloudSQLManager:
             'instance_connection_string': self.connection_name,
             'driver': "asyncpg",
             'user': db_user,
-            'db': self.database_name,  # asyncpg uses 'db' not 'database'
+            'database': self.database_name,  # asyncpg uses 'database' parameter
             'ip_type': "private" if os.getenv('USE_PRIVATE_IP', 'true').lower() == 'true' else "public"
         }
 

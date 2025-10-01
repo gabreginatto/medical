@@ -87,7 +87,7 @@ class PerformanceTracker:
     def record_cache_hit(self):
         """Record a cache hit"""
         if self.current_operation:
-            self.cache_hits += 1
+            self.current_operation.cache_hits += 1
 
     def record_cache_miss(self):
         """Record a cache miss"""
@@ -149,6 +149,7 @@ class MedicalProcurementAnalytics:
         """
         conn = await self.db_ops.db_manager.get_connection()
 
+        params = [limit]
         query = """
             SELECT
                 unnest(ti.catmat_codes) as catmat_code,
@@ -162,7 +163,8 @@ class MedicalProcurementAnalytics:
         """
 
         if state_code:
-            query += f" AND t.state_code = '{state_code}'"
+            query += " AND t.state_code = $2"
+            params.append(state_code)
 
         query += """
             GROUP BY catmat_code
@@ -171,11 +173,13 @@ class MedicalProcurementAnalytics:
         """
 
         try:
-            results = await conn.fetch(query, limit)
+            results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting top medical equipment: {e}")
             return []
+        finally:
+            await conn.close()
 
     async def get_state_procurement_trends(self) -> List[Dict]:
         """Get procurement trends by state"""
@@ -202,11 +206,14 @@ class MedicalProcurementAnalytics:
         except Exception as e:
             logger.error(f"Error getting state trends: {e}")
             return []
+        finally:
+            await conn.close()
 
     async def get_top_medical_buyers(self, limit: int = 50, state_code: Optional[str] = None) -> List[Dict]:
         """Get top medical equipment buyers"""
         conn = await self.db_ops.db_manager.get_connection()
 
+        params = [limit]
         query = """
             SELECT
                 o.name,
@@ -224,7 +231,8 @@ class MedicalProcurementAnalytics:
         """
 
         if state_code:
-            query += f" AND o.state_code = '{state_code}'"
+            query += " AND o.state_code = $2"
+            params.append(state_code)
 
         query += """
             GROUP BY o.id, o.name, o.cnpj, o.state_code, o.organization_type
@@ -233,11 +241,13 @@ class MedicalProcurementAnalytics:
         """
 
         try:
-            results = await conn.fetch(query, limit)
+            results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting top buyers: {e}")
             return []
+        finally:
+            await conn.close()
 
     async def get_fernandes_opportunities(self, min_match_score: float = 60.0) -> List[Dict]:
         """Get procurement opportunities matching Fernandes products"""
@@ -249,8 +259,8 @@ class MedicalProcurementAnalytics:
                 mp.fernandes_product_description,
                 COUNT(*) as match_count,
                 AVG(mp.match_score) as avg_match_score,
-                AVG(mp.homologated_price_brl) as avg_market_price,
-                AVG(mp.fob_price_usd) as avg_fob_price,
+                AVG(mp.price_comparison_brl) as avg_market_price,
+                AVG(mp.price_comparison_usd) as avg_fob_price,
                 AVG(mp.price_difference_percent) as avg_markup,
                 COUNT(CASE WHEN mp.is_competitive THEN 1 END) as competitive_count
             FROM matched_products mp
@@ -265,11 +275,14 @@ class MedicalProcurementAnalytics:
         except Exception as e:
             logger.error(f"Error getting Fernandes opportunities: {e}")
             return []
+        finally:
+            await conn.close()
 
     async def get_monthly_trends(self, months_back: int = 12, state_code: Optional[str] = None) -> List[Dict]:
         """Get monthly procurement trends"""
         conn = await self.db_ops.db_manager.get_connection()
 
+        params = [months_back]
         query = """
             SELECT
                 DATE_TRUNC('month', t.publication_date) as month,
@@ -280,11 +293,12 @@ class MedicalProcurementAnalytics:
             FROM tenders t
             JOIN tender_items ti ON t.id = ti.tender_id
             WHERE ti.has_medical_catmat = TRUE
-              AND t.publication_date >= NOW() - INTERVAL '$1 months'
+              AND t.publication_date >= NOW() - ($1 || ' months')::INTERVAL
         """
 
         if state_code:
-            query += f" AND t.state_code = '{state_code}'"
+            query += " AND t.state_code = $2"
+            params.append(state_code)
 
         query += """
             GROUP BY month
@@ -292,11 +306,13 @@ class MedicalProcurementAnalytics:
         """
 
         try:
-            results = await conn.fetch(query, months_back)
+            results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting monthly trends: {e}")
             return []
+        finally:
+            await conn.close()
 
     async def generate_comprehensive_report(self, state_code: Optional[str] = None) -> Dict[str, Any]:
         """Generate comprehensive analytics report"""

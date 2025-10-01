@@ -4,7 +4,6 @@ Pushes tender results directly to Notion databases
 """
 
 import os
-import json
 import asyncio
 import aiohttp
 from datetime import datetime

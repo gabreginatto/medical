@@ -867,7 +867,7 @@ class TenderClassifier:
 
 
 # Utility functions for analysis
-def analyze_classifications(classifications: List[ClassificationResult]) -> Dict[str, any]:
+def analyze_classifications(classifications: List[ClassificationResult]) -> Dict[str, Any]:
     """Analyze classification results for insights"""
 
     analysis = {
