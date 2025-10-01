@@ -161,7 +161,7 @@ class OptimizedTenderDiscovery:
             raw_tenders = await self.api_client.discover_tenders_for_state(
                 state, start_date, end_date,
                 modalities=self.config.allowed_modalities,
-                max_tenders=1000  # Limit for safety
+                max_tenders=5000  # Increased to find more medical tenders
             )
 
             # Update metrics

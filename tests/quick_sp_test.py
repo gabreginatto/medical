@@ -52,20 +52,20 @@ async def quick_test():
         catmat_boost_enabled=True  # Prioritize CATMAT-coded items
     )
 
-    # Use August-September 2024 when PNCP had completed tenders
+    # Use July-September 2024 when PNCP had completed tenders
     # Going back further to find completed tenders with items
     end_date = datetime(2024, 9, 15)
-    start_date = datetime(2024, 8, 15)  # 31 days prior
+    start_date = datetime(2024, 7, 1)  # ~75 days for more variety
 
     # Format dates correctly for PNCP API (YYYYMMDD)
     start_date_str = start_date.strftime('%Y%m%d')
     end_date_str = end_date.strftime('%Y%m%d')
 
-    print(f"\n🔍 Using August-September 2024 data (completed tenders)")
+    print(f"\n🔍 Using July-September 2024 data (completed tenders)")
     print(f"   Start: {start_date_str} ({start_date.strftime('%Y-%m-%d')})")
     print(f"   End: {end_date_str} ({end_date.strftime('%Y-%m-%d')})")
 
-    print(f"\n📅 Date Range: {start_date_str} to {end_date_str} (31 days)")
+    print(f"\n📅 Date Range: {start_date_str} to {end_date_str} (~75 days, up to 5000 tenders)")
     print(f"📍 State: São Paulo (SP)")
     print(f"🎯 Target: Get at least 5 completed medical tenders quickly")
     print(f"⚡ Optimizations: Short date range, high score threshold, cache enabled")
@@ -230,9 +230,9 @@ async def quick_test():
 
         print("\n✅ Quick test completed!")
         print("\n💡 To get more tenders:")
-        print("   - Increase date range: 31 days → 60 days")
+        print("   - Increase max_tenders: 5000 → 10000")
         print("   - Lower min_match_score: 40.0 → 30.0")
-        print("   - Try different time periods (earlier months may have more completed tenders)")
+        print("   - Try different time periods (earlier in 2024 may have more completed tenders)")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
