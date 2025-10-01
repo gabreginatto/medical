@@ -233,7 +233,7 @@ class ItemProcessor:
         # If no explicit winner, take the one with lowest price
         valid_results = [r for r in results if self._safe_float(r.get('valorUnitario')) is not None]
         if valid_results:
-            return min(valid_results, key=lambda x: self._safe_float(x.get('valorUnitario')) or float('inf'))
+            return min(valid_results, key=lambda x: self._safe_float(x.get('valorUnitario', float('inf'))))
 
         return None
 

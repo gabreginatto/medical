@@ -235,6 +235,7 @@ class OptimizedTenderDiscovery:
 
         confirmed = []
         api_calls = 0
+        api_calls_lock = asyncio.Lock()
 
         # Concurrent sampling with rate limiting
         semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
@@ -255,7 +256,8 @@ class OptimizedTenderDiscovery:
                     sample_items = await self.api_client.fetch_sample_items(
                         cnpj, year, sequential, max_items=3
                     )
-                    api_calls += 1
+                    async with api_calls_lock:
+                        api_calls += 1
 
                     if not sample_items:
                         return None
@@ -306,15 +308,14 @@ class OptimizedTenderDiscovery:
 
         # Check remaining tenders for auto-approval
         confirmed_control_numbers = {t.get('numeroControlePNCPCompra') for t in confirmed if t.get('numeroControlePNCPCompra')}
-        for tender in tenders:
-            control_num = tender.get('numeroControlePNCPCompra')
-            if control_num and control_num not in confirmed_control_numbers:
-                cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
-                if cnpj in org_tender_counts and org_tender_counts[cnpj] >= 2:
-                    tender['medical_confidence'] = 80
-                    tender['auto_approved'] = True
-                    confirmed.append(tender)
-                    confirmed_control_numbers.add(control_num)
+        remaining_tenders = [t for t in tenders if t.get('numeroControlePNCPCompra') not in confirmed_control_numbers]
+
+        for tender in remaining_tenders:
+            cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
+            if cnpj in org_tender_counts and org_tender_counts[cnpj] >= 2:
+                tender['medical_confidence'] = 80
+                tender['auto_approved'] = True
+                confirmed.append(tender)
 
         # Update metrics
         self.metrics.stage3_smart_sampling.tenders_out = len(confirmed)

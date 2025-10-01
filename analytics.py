@@ -303,7 +303,7 @@ class MedicalProcurementAnalytics:
                 FROM tenders t
                 JOIN tender_items ti ON t.id = ti.tender_id
                 WHERE ti.has_medical_catmat = TRUE
-                  AND t.publication_date >= NOW() - ($1 || ' months')::INTERVAL
+                  AND t.publication_date >= NOW() - ($1::text || ' months')::INTERVAL
             """
 
             if state_code:

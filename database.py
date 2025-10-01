@@ -375,7 +375,8 @@ class DatabaseOperations:
                  item.get('estimated_unit_value'), item.get('estimated_total_value'),
                  item.get('homologated_unit_value'), item.get('homologated_total_value'),
                  item.get('winner_name'), item.get('winner_cnpj'),
-                 item.get('catmat_codes', []), item.get('has_medical_catmat', False),
+                 item.get('catmat_codes') if item.get('catmat_codes') else [],
+                 item.get('has_medical_catmat', False),
                  item.get('catmat_score_boost', 0), item.get('sample_analyzed', False),
                  item.get('medical_confidence_score'))
                 for item in items_data
@@ -400,8 +401,10 @@ class DatabaseOperations:
             if state_code:
                 query += " AND t.state_code = $1"
                 params.append(state_code)
+                query += " ORDER BY t.total_homologated_value DESC LIMIT $2"
+            else:
+                query += " ORDER BY t.total_homologated_value DESC LIMIT $1"
 
-            query += " ORDER BY t.total_homologated_value DESC LIMIT $" + str(len(params) + 1)
             params.append(limit)
 
             rows = await conn.fetch(query, *params)

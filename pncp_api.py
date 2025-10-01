@@ -139,6 +139,8 @@ class PNCPAPIClient:
         url = f"{self.consultation_url}/v1/contratacoes/publicacao"
 
         # Ensure page size is within API limits (10-500)
+        if page_size < APIConfig.MIN_PAGE_SIZE or page_size > APIConfig.MAX_PAGE_SIZE:
+            logger.warning(f"Page size {page_size} out of range [{APIConfig.MIN_PAGE_SIZE}-{APIConfig.MAX_PAGE_SIZE}], clamping to valid range")
         final_page_size = max(APIConfig.MIN_PAGE_SIZE, min(page_size, APIConfig.MAX_PAGE_SIZE))
 
         params = {
