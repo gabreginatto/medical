@@ -160,7 +160,7 @@ class OptimizedTenderDiscovery:
             # Fetch using configured modalities
             raw_tenders = await self.api_client.discover_tenders_for_state(
                 state, start_date, end_date,
-                modality_codes=self.config.allowed_modalities,
+                modalities=self.config.allowed_modalities,
                 max_tenders=1000  # Limit for safety
             )
 

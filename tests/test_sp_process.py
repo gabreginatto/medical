@@ -22,8 +22,10 @@ from config import ProcessingConfig
 from database import CloudSQLManager, DatabaseOperations
 from pncp_api import PNCPAPIClient
 from classifier import TenderClassifier
-from tender_discovery import TenderDiscoveryEngine
+from optimized_discovery import OptimizedTenderDiscovery
 from item_processor import ItemProcessor
+from product_matcher import ProductMatcher
+import csv
 
 # Configure logging
 logging.basicConfig(
@@ -83,19 +85,37 @@ async def test_sp_processing():
         # Initialize components
         print("\n2️⃣  Initializing API client and classifier...")
         api_client = PNCPAPIClient()
+        await api_client.start_session()
         classifier = TenderClassifier()
+
+        # Load Fernandes catalog (if available)
+        fernandes_products = []
+        catalog_path = os.getenv('FERNANDES_CATALOG_CSV', '')
+        if catalog_path and os.path.exists(catalog_path):
+            with open(catalog_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                fernandes_products = list(reader)
+            print(f"   📦 Loaded {len(fernandes_products)} Fernandes products")
+
+        product_matcher = ProductMatcher()
         print("   ✅ Components initialized")
 
-        # Create discovery engine
-        discovery_engine = TenderDiscoveryEngine(api_client, classifier, db_ops, config)
+        # Create discovery engine (V2)
+        discovery_engine = OptimizedTenderDiscovery(api_client, classifier, db_ops, config)
 
         # Discover tenders (limited sample)
-        print("\n3️⃣  Discovering tenders in SP state...")
+        print("\n3️⃣  Discovering tenders in SP state (optimized V2 pipeline)...")
         print("   (Looking for finalized tenders with homologated prices)")
 
-        stats = await discovery_engine.discover_tenders_for_date_range(
-            start_date_str, end_date_str, ['SP']
+        medical_tenders, metrics = await discovery_engine.discover_medical_tenders_optimized(
+            'SP', start_date_str, end_date_str
         )
+
+        stats = type('Stats', (), {
+            'total_found': metrics.stage1_bulk_fetch.tenders_out,
+            'medical_relevant': len(medical_tenders),
+            'processing_time_seconds': metrics.total_duration
+        })()
 
         print(f"\n   📊 Discovery Results:")
         print(f"   - Total Found: {stats.total_found}")
@@ -128,7 +148,10 @@ async def test_sp_processing():
 
         # Process items
         print("\n5️⃣  Processing tender items...")
-        item_processor = ItemProcessor(api_client, db_ops, config)
+        usd_to_brl = float(os.getenv('USD_TO_BRL_RATE', '5.0'))
+        item_processor = ItemProcessor(
+            api_client, product_matcher, db_ops, fernandes_products, usd_to_brl
+        )
 
         total_items = 0
         total_matches = 0
@@ -139,24 +162,24 @@ async def test_sp_processing():
 
             try:
                 result = await item_processor.process_tender_items(
+                    tender['id'],
                     tender['cnpj'],
                     tender['ano'],
-                    tender['sequencial'],
-                    tender['id']
+                    tender['sequencial']
                 )
 
-                print(f"   ✅ Items: {result.items_processed}, Matches: {result.items_matched}")
-                total_items += result.items_processed
-                total_matches += result.items_matched
+                print(f"   ✅ Items: {result.total_items_found}, Matches: {result.matched_products}")
+                total_items += result.total_items_found
+                total_matches += result.matched_products
 
                 # Show sample items if any
-                if result.items_processed > 0:
+                if result.total_items_found > 0:
                     print(f"   📦 Sample items from this tender:")
                     # Get items from database
                     items = await db_ops.get_tender_items(tender['id'], limit=3)
                     for item in items:
                         print(f"      - {item.get('description', 'N/A')[:60]}")
-                        print(f"        Quantity: {item.get('quantity', 0)}, Unit Price: R$ {item.get('unit_price', 0):,.2f}")
+                        print(f"        Quantity: {item.get('quantity', 0)}, Unit Price: R$ {item.get('homologated_unit_value', 0):,.2f}")
                         if item.get('matched_product_id'):
                             print(f"        ✅ Matched to product")
 
@@ -177,7 +200,7 @@ async def test_sp_processing():
             print(f"Match Rate: {match_rate:.1f}%")
         print(f"Processing Time: {stats.processing_time_seconds:.1f}s")
 
-        if stats.errors:
+        if hasattr(stats, 'errors') and stats.errors:
             print(f"\n⚠️  Errors Encountered: {len(stats.errors)}")
             for error in stats.errors[:3]:
                 print(f"   - {error}")
@@ -196,6 +219,8 @@ async def test_sp_processing():
 
     finally:
         # Cleanup
+        if 'api_client' in locals():
+            await api_client.close_session()
         if 'db_manager' in locals():
             await db_manager.close()
             print("\n🔒 Database connection closed")
