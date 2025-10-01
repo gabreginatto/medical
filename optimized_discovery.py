@@ -226,18 +226,81 @@ class OptimizedTenderDiscovery:
 
         return filtered
 
+    def _count_medical_keywords_in_object(self, objeto: str) -> int:
+        """Count strong medical keywords in tender object description"""
+        if not objeto:
+            return 0
+
+        objeto_lower = objeto.lower()
+
+        # Strong medical keywords that are highly indicative
+        strong_keywords = [
+            'medicamento', 'remedio', 'remédio', 'farmaco', 'fármaco',
+            'hospitalar', 'hospital',
+            'cirurgico', 'cirúrgico', 'cirurgia',
+            'médico', 'medico',
+            'laboratorio', 'laboratório', 'exame',
+            'equipamento médico', 'material médico',
+            'curativo', 'seringa', 'cateter', 'equipo',
+            'diagnostico', 'diagnóstico',
+            'tratamento', 'terapia',
+            'ambulancia', 'ambulância',
+            'insumo médico', 'insumo hospitalar',
+            'material cirurgico', 'material cirúrgico',
+            'uti', 'centro cirurgico', 'centro cirúrgico',
+            'pronto socorro', 'pronto-socorro',
+            'radiologia', 'tomografia', 'raio-x',
+            'anestesia', 'anestésico'
+        ]
+
+        return sum(1 for keyword in strong_keywords if keyword in objeto_lower)
+
     async def _stage3_smart_sampling(self, tenders: List[Dict]) -> List[Dict]:
         """
-        Stage 3: Smart sampling - fetch first 3 items only to validate
-        Strategy: Sample instead of full fetch, early termination
+        Stage 3: HYBRID Smart Sampling (Option 3)
+        - Auto-approve high-confidence tenders (score >= 70 OR 2+ medical keywords)
+        - Only sample items for medium-confidence edge cases (40-69 with 1 keyword)
+        Strategy: Trust objetoCompra field, only verify edge cases
         """
         start_time = datetime.now()
         self.metrics.stage3_smart_sampling.tenders_in = len(tenders)
 
         confirmed = []
+        needs_sampling = []
         api_calls = 0
         api_calls_lock = asyncio.Lock()
 
+        # PHASE 1: Auto-approve high-confidence tenders (NO API CALLS)
+        for tender in tenders:
+            # Get the quick filter score that was already calculated
+            quick_score = tender.get('quick_filter_score', 0)
+            objeto = tender.get('objetoCompra', '')
+
+            # Count medical keywords in object
+            medical_keyword_count = self._count_medical_keywords_in_object(objeto)
+
+            # AUTO-APPROVE CONDITIONS (skip API calls):
+            # 1. High confidence score (>= 70)
+            # 2. Multiple medical keywords (>= 2) in object
+            # 3. Very high score (>= 80) from org name alone
+            if quick_score >= 70 or medical_keyword_count >= 2 or quick_score >= 80:
+                # High confidence - approve without sampling
+                confidence = max(quick_score, 60 + (medical_keyword_count * 10))
+                confidence = min(confidence, 95)  # Cap at 95
+
+                tender['medical_confidence'] = confidence
+                tender['auto_approved'] = True
+                tender['approval_reason'] = f'score={quick_score}, keywords={medical_keyword_count}'
+                confirmed.append(tender)
+
+                logger.debug(f"Auto-approved tender {tender.get('numeroControlePNCPCompra')}: score={quick_score}, keywords={medical_keyword_count}")
+            else:
+                # Medium confidence - needs item sampling to verify
+                needs_sampling.append(tender)
+
+        logger.info(f"📊 Stage 3 Phase 1: {len(confirmed)} auto-approved, {len(needs_sampling)} need sampling")
+
+        # PHASE 2: Sample only edge cases (API calls only when needed)
         # Concurrent sampling with rate limiting
         semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
 
@@ -289,35 +352,43 @@ class OptimizedTenderDiscovery:
                     self.metrics.stage3_smart_sampling.errors += 1
                     return None
 
-        # Process in batches to avoid overwhelming the API
+        # Process only edge cases in batches
         batch_size = 50
-        for i in range(0, len(tenders), batch_size):
-            batch = tenders[i:i + batch_size]
+        for i in range(0, len(needs_sampling), batch_size):
+            batch = needs_sampling[i:i + batch_size]
             tasks = [sample_tender(t) for t in batch]
             results = await asyncio.gather(*tasks)
             confirmed.extend([r for r in results if r is not None])
 
             # Small delay between batches
-            if i + batch_size < len(tenders):
+            if i + batch_size < len(needs_sampling):
                 await asyncio.sleep(1)
 
-        # Auto-approve remaining tenders from confirmed medical orgs
-        # If we found 2+ medical tenders from same org, trust it
+        logger.info(f"📊 Stage 3 Phase 2: {len(needs_sampling)} sampled, {api_calls} API calls")
+
+        # PHASE 3: Auto-approve from confirmed medical orgs
+        # If we found 2+ medical tenders from same org, trust remaining tenders from that org
         org_tender_counts = {}
         for tender in confirmed:
             cnpj = self._normalize_cnpj(tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', ''))
             org_tender_counts[cnpj] = org_tender_counts.get(cnpj, 0) + 1
 
-        # Check remaining tenders for auto-approval
+        # Check tenders that weren't sampled yet
         confirmed_control_numbers = {t.get('numeroControlePNCPCompra') for t in confirmed if t.get('numeroControlePNCPCompra')}
-        remaining_tenders = [t for t in tenders if t.get('numeroControlePNCPCompra') not in confirmed_control_numbers]
+        remaining_from_sampling = [t for t in needs_sampling if t.get('numeroControlePNCPCompra') not in confirmed_control_numbers]
 
-        for tender in remaining_tenders:
+        org_approved = 0
+        for tender in remaining_from_sampling:
             cnpj = self._normalize_cnpj(tender.get('orgaoEntidade', {}).get('cnpj', '') or tender.get('cnpj', ''))
             if cnpj in org_tender_counts and org_tender_counts[cnpj] >= 2:
-                tender['medical_confidence'] = 80
+                tender['medical_confidence'] = 75
                 tender['auto_approved'] = True
+                tender['approval_reason'] = 'org_history'
                 confirmed.append(tender)
+                org_approved += 1
+
+        if org_approved > 0:
+            logger.info(f"📊 Stage 3 Phase 3: {org_approved} org-approved from medical organizations")
 
         # Update metrics
         self.metrics.stage3_smart_sampling.tenders_out = len(confirmed)
