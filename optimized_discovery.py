@@ -305,14 +305,16 @@ class OptimizedTenderDiscovery:
             org_tender_counts[cnpj] = org_tender_counts.get(cnpj, 0) + 1
 
         # Check remaining tenders for auto-approval
-        confirmed_ids = {id(t) for t in confirmed}
+        confirmed_control_numbers = {t.get('numeroControlePNCPCompra') for t in confirmed if t.get('numeroControlePNCPCompra')}
         for tender in tenders:
-            if id(tender) not in confirmed_ids:
+            control_num = tender.get('numeroControlePNCPCompra')
+            if control_num and control_num not in confirmed_control_numbers:
                 cnpj = self._normalize_cnpj(tender.get('cnpj', ''))
                 if cnpj in org_tender_counts and org_tender_counts[cnpj] >= 2:
                     tender['medical_confidence'] = 80
                     tender['auto_approved'] = True
                     confirmed.append(tender)
+                    confirmed_control_numbers.add(control_num)
 
         # Update metrics
         self.metrics.stage3_smart_sampling.tenders_out = len(confirmed)

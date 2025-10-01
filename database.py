@@ -409,6 +409,26 @@ class DatabaseOperations:
         finally:
             await conn.close()
 
+    async def get_tender_items(self, tender_id: int, limit: int = None) -> List[Dict]:
+        """Get items for a specific tender"""
+        conn = await self.db_manager.get_connection()
+        try:
+            params = [tender_id]
+            query = """
+                SELECT *
+                FROM tender_items
+                WHERE tender_id = $1
+                ORDER BY item_number
+            """
+            if limit:
+                query += " LIMIT $2"
+                params.append(limit)
+
+            rows = await conn.fetch(query, *params)
+            return [dict(row) for row in rows]
+        finally:
+            await conn.close()
+
     async def log_processing_start(self, process_type: str, state_code: str = None,
                                   metadata: Dict = None) -> int:
         """Log start of processing operation"""

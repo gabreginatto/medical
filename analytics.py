@@ -147,172 +147,182 @@ class MedicalProcurementAnalytics:
         Get top medical equipment by frequency
         Returns items with CATMAT codes and match frequency
         """
-        conn = await self.db_ops.db_manager.get_connection()
-
-        params = [limit]
-        query = """
-            SELECT
-                unnest(ti.catmat_codes) as catmat_code,
-                COUNT(*) as frequency,
-                AVG(ti.homologated_unit_value) as avg_unit_price,
-                SUM(ti.quantity) as total_quantity,
-                COUNT(DISTINCT t.organization_id) as org_count
-            FROM tender_items ti
-            JOIN tenders t ON ti.tender_id = t.id
-            WHERE ti.has_medical_catmat = TRUE
-        """
-
-        if state_code:
-            query += " AND t.state_code = $2"
-            params.append(state_code)
-
-        query += """
-            GROUP BY catmat_code
-            ORDER BY frequency DESC
-            LIMIT $1
-        """
-
+        conn = None
         try:
+            conn = await self.db_ops.db_manager.get_connection()
+
+            params = [limit]
+            query = """
+                SELECT
+                    unnest(ti.catmat_codes) as catmat_code,
+                    COUNT(*) as frequency,
+                    AVG(ti.homologated_unit_value) as avg_unit_price,
+                    SUM(ti.quantity) as total_quantity,
+                    COUNT(DISTINCT t.organization_id) as org_count
+                FROM tender_items ti
+                JOIN tenders t ON ti.tender_id = t.id
+                WHERE ti.has_medical_catmat = TRUE
+            """
+
+            if state_code:
+                query += " AND t.state_code = $2"
+                params.append(state_code)
+
+            query += """
+                GROUP BY catmat_code
+                ORDER BY frequency DESC
+                LIMIT $1
+            """
+
             results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting top medical equipment: {e}")
             return []
         finally:
-            await conn.close()
+            if conn:
+                await conn.close()
 
     async def get_state_procurement_trends(self) -> List[Dict]:
         """Get procurement trends by state"""
-        conn = await self.db_ops.db_manager.get_connection()
-
-        query = """
-            SELECT
-                t.state_code,
-                COUNT(DISTINCT t.id) as tender_count,
-                COUNT(DISTINCT t.organization_id) as org_count,
-                SUM(t.total_homologated_value) as total_value,
-                AVG(t.total_homologated_value) as avg_value,
-                COUNT(DISTINCT ti.catmat_codes) as unique_catmat_codes
-            FROM tenders t
-            LEFT JOIN tender_items ti ON t.id = ti.tender_id
-            WHERE ti.has_medical_catmat = TRUE
-            GROUP BY t.state_code
-            ORDER BY total_value DESC
-        """
-
+        conn = None
         try:
+            conn = await self.db_ops.db_manager.get_connection()
+
+            query = """
+                SELECT
+                    t.state_code,
+                    COUNT(DISTINCT t.id) as tender_count,
+                    COUNT(DISTINCT t.organization_id) as org_count,
+                    SUM(t.total_homologated_value) as total_value,
+                    AVG(t.total_homologated_value) as avg_value,
+                    COUNT(DISTINCT ti.catmat_codes) as unique_catmat_codes
+                FROM tenders t
+                LEFT JOIN tender_items ti ON t.id = ti.tender_id
+                WHERE ti.has_medical_catmat = TRUE
+                GROUP BY t.state_code
+                ORDER BY total_value DESC
+            """
+
             results = await conn.fetch(query)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting state trends: {e}")
             return []
         finally:
-            await conn.close()
+            if conn:
+                await conn.close()
 
     async def get_top_medical_buyers(self, limit: int = 50, state_code: Optional[str] = None) -> List[Dict]:
         """Get top medical equipment buyers"""
-        conn = await self.db_ops.db_manager.get_connection()
-
-        params = [limit]
-        query = """
-            SELECT
-                o.name,
-                o.cnpj,
-                o.state_code,
-                o.organization_type,
-                COUNT(DISTINCT t.id) as tender_count,
-                SUM(t.total_homologated_value) as total_spending,
-                AVG(t.total_homologated_value) as avg_tender_value,
-                COUNT(DISTINCT ti.catmat_codes) as unique_products
-            FROM organizations o
-            JOIN tenders t ON o.id = t.organization_id
-            LEFT JOIN tender_items ti ON t.id = ti.tender_id
-            WHERE ti.has_medical_catmat = TRUE
-        """
-
-        if state_code:
-            query += " AND o.state_code = $2"
-            params.append(state_code)
-
-        query += """
-            GROUP BY o.id, o.name, o.cnpj, o.state_code, o.organization_type
-            ORDER BY total_spending DESC
-            LIMIT $1
-        """
-
+        conn = None
         try:
+            conn = await self.db_ops.db_manager.get_connection()
+
+            params = [limit]
+            query = """
+                SELECT
+                    o.name,
+                    o.cnpj,
+                    o.state_code,
+                    o.organization_type,
+                    COUNT(DISTINCT t.id) as tender_count,
+                    SUM(t.total_homologated_value) as total_spending,
+                    AVG(t.total_homologated_value) as avg_tender_value,
+                    COUNT(DISTINCT ti.catmat_codes) as unique_products
+                FROM organizations o
+                JOIN tenders t ON o.id = t.organization_id
+                LEFT JOIN tender_items ti ON t.id = ti.tender_id
+                WHERE ti.has_medical_catmat = TRUE
+            """
+
+            if state_code:
+                query += " AND o.state_code = $2"
+                params.append(state_code)
+
+            query += """
+                GROUP BY o.id, o.name, o.cnpj, o.state_code, o.organization_type
+                ORDER BY total_spending DESC
+                LIMIT $1
+            """
+
             results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting top buyers: {e}")
             return []
         finally:
-            await conn.close()
+            if conn:
+                await conn.close()
 
     async def get_fernandes_opportunities(self, min_match_score: float = 60.0) -> List[Dict]:
         """Get procurement opportunities matching Fernandes products"""
-        conn = await self.db_ops.db_manager.get_connection()
-
-        query = """
-            SELECT
-                mp.fernandes_product_code,
-                mp.fernandes_product_description,
-                COUNT(*) as match_count,
-                AVG(mp.match_score) as avg_match_score,
-                AVG(mp.price_comparison_brl) as avg_market_price,
-                AVG(mp.price_comparison_usd) as avg_fob_price,
-                AVG(mp.price_difference_percent) as avg_markup,
-                COUNT(CASE WHEN mp.is_competitive THEN 1 END) as competitive_count
-            FROM matched_products mp
-            WHERE mp.match_score >= $1
-            GROUP BY mp.fernandes_product_code, mp.fernandes_product_description
-            ORDER BY match_count DESC
-        """
-
+        conn = None
         try:
+            conn = await self.db_ops.db_manager.get_connection()
+
+            query = """
+                SELECT
+                    mp.fernandes_product_code,
+                    mp.fernandes_product_description,
+                    COUNT(*) as match_count,
+                    AVG(mp.match_score) as avg_match_score,
+                    AVG(mp.price_comparison_brl) as avg_market_price,
+                    AVG(mp.price_comparison_usd) as avg_fob_price,
+                    AVG(mp.price_difference_percent) as avg_markup,
+                    COUNT(CASE WHEN mp.is_competitive THEN 1 END) as competitive_count
+                FROM matched_products mp
+                WHERE mp.match_score >= $1
+                GROUP BY mp.fernandes_product_code, mp.fernandes_product_description
+                ORDER BY match_count DESC
+            """
+
             results = await conn.fetch(query, min_match_score)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting Fernandes opportunities: {e}")
             return []
         finally:
-            await conn.close()
+            if conn:
+                await conn.close()
 
     async def get_monthly_trends(self, months_back: int = 12, state_code: Optional[str] = None) -> List[Dict]:
         """Get monthly procurement trends"""
-        conn = await self.db_ops.db_manager.get_connection()
-
-        params = [months_back]
-        query = """
-            SELECT
-                DATE_TRUNC('month', t.publication_date) as month,
-                COUNT(DISTINCT t.id) as tender_count,
-                SUM(t.total_homologated_value) as total_value,
-                AVG(t.total_homologated_value) as avg_value,
-                COUNT(DISTINCT t.organization_id) as org_count
-            FROM tenders t
-            JOIN tender_items ti ON t.id = ti.tender_id
-            WHERE ti.has_medical_catmat = TRUE
-              AND t.publication_date >= NOW() - ($1 || ' months')::INTERVAL
-        """
-
-        if state_code:
-            query += " AND t.state_code = $2"
-            params.append(state_code)
-
-        query += """
-            GROUP BY month
-            ORDER BY month DESC
-        """
-
+        conn = None
         try:
+            conn = await self.db_ops.db_manager.get_connection()
+
+            params = [months_back]
+            query = """
+                SELECT
+                    DATE_TRUNC('month', t.publication_date) as month,
+                    COUNT(DISTINCT t.id) as tender_count,
+                    SUM(t.total_homologated_value) as total_value,
+                    AVG(t.total_homologated_value) as avg_value,
+                    COUNT(DISTINCT t.organization_id) as org_count
+                FROM tenders t
+                JOIN tender_items ti ON t.id = ti.tender_id
+                WHERE ti.has_medical_catmat = TRUE
+                  AND t.publication_date >= NOW() - ($1 || ' months')::INTERVAL
+            """
+
+            if state_code:
+                query += " AND t.state_code = $2"
+                params.append(state_code)
+
+            query += """
+                GROUP BY month
+                ORDER BY month DESC
+            """
+
             results = await conn.fetch(query, *params)
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error getting monthly trends: {e}")
             return []
         finally:
-            await conn.close()
+            if conn:
+                await conn.close()
 
     async def generate_comprehensive_report(self, state_code: Optional[str] = None) -> Dict[str, Any]:
         """Generate comprehensive analytics report"""
