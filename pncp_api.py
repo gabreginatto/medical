@@ -208,7 +208,10 @@ class PNCPAPIClient:
         Performance: Uses concurrent page fetching for 3-5x speedup within rate limits
         """
         if modalities is None:
-            modalities = [4, 6, 8]  # Electronic tenders, Pregão, Dispensa
+            # Use same default as ProcessingConfig (V5 optimized)
+            # 1: Concorrência, 6: Pregão Eletrônico, 9: Inexigibilidade, 12: Registro de Preços
+            # Removed: 8 (Dispensa) - high rejection rate
+            modalities = [1, 6, 9, 12]
 
         all_tenders = []
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
@@ -268,6 +271,7 @@ class PNCPAPIClient:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
                 # Process results
+                pages_processed = 0
                 for page_num, result in zip(pages_to_fetch, results):
                     if isinstance(result, Exception):
                         logger.error(f"Error fetching page {page_num}: {result}")
@@ -285,9 +289,11 @@ class PNCPAPIClient:
                                 data = data[:remaining]
 
                             all_tenders.extend(data)
+                            pages_processed += 1
 
-                            if page_num % 10 == 0:  # Log progress every 10 pages
-                                logger.info(f"Progress: page {page_num}/{total_pages}, total: {len(all_tenders)} tenders")
+                            # Log progress every 10 pages processed (not by page number)
+                            if pages_processed % 10 == 0:
+                                logger.info(f"Progress: {pages_processed}/{len(pages_to_fetch)} pages processed, total: {len(all_tenders)} tenders")
 
                             if max_tenders and len(all_tenders) >= max_tenders:
                                 logger.info(f"Reached max_tenders limit ({max_tenders})")
