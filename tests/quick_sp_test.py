@@ -191,19 +191,10 @@ async def quick_test():
                     'state_code': tender.get('uf', 'SP')
                 })
 
-                # Insert tender
+                # Insert tender (only organization_id and control_number exist in schema)
                 tender_id = await db_ops.insert_tender({
                     'organization_id': org_id,
-                    'control_number': control_num,
-                    'government_level': tender.get('government_level', 'unknown'),
-                    'tender_size': tender.get('tender_size', 'unknown'),
-                    'contracting_modality': tender.get('modalidadeId'),
-                    'modality_name': tender.get('modalidadeNome'),
-                    'total_estimated_value': tender.get('valorTotalEstimado', 0),
-                    'total_homologated_value': tender.get('valorTotalHomologado', 0),
-                    'publication_date': tender.get('dataPublicacaoPncp'),
-                    'state_code': tender.get('uf', 'SP'),
-                    'status': 'discovered'
+                    'control_number': control_num
                 })
 
                 saved_count += 1

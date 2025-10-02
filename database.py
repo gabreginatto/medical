@@ -318,22 +318,12 @@ class DatabaseOperations:
         try:
             tender_id = await conn.fetchval("""
                 INSERT INTO tenders (
-                    organization_id, control_number,
-                    government_level, tender_size, contracting_modality, modality_name,
-                    total_estimated_value, total_homologated_value, publication_date,
-                    state_code, municipality_code, status, process_category
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    organization_id, control_number
+                ) VALUES ($1, $2)
                 ON CONFLICT (control_number) DO UPDATE SET
-                    total_homologated_value = EXCLUDED.total_homologated_value,
-                    status = EXCLUDED.status
+                    organization_id = EXCLUDED.organization_id
                 RETURNING id
-            """, tender_data['organization_id'], tender_data.get('control_number'),
-                tender_data['government_level'], tender_data['tender_size'],
-                tender_data.get('contracting_modality'), tender_data.get('modality_name'),
-                tender_data.get('total_estimated_value'), tender_data.get('total_homologated_value'),
-                tender_data.get('publication_date'), tender_data.get('state_code'),
-                tender_data.get('municipality_code'), tender_data.get('status'),
-                tender_data.get('process_category'))
+            """, tender_data['organization_id'], tender_data.get('control_number'))
             return tender_id
         finally:
             await conn.close()
