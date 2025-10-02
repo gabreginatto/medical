@@ -194,7 +194,6 @@ async def quick_test():
                 # Insert tender
                 tender_id = await db_ops.insert_tender({
                     'organization_id': org_id,
-                    'cnpj': cnpj,
                     'ano': tender.get('anoCompra'),
                     'sequencial': tender.get('sequencialCompra'),
                     'control_number': control_num,

@@ -295,7 +295,7 @@ class DatabaseOperations:
                 await conn.execute("""
                     UPDATE organizations
                     SET name = $2, government_level = $3, organization_type = $4,
-                        state_code = $5, updated_at = CURRENT_TIMESTAMP
+                        state_code = $5
                     WHERE cnpj = $1
                 """, org_data['cnpj'], org_data['name'], org_data['government_level'],
                     org_data.get('organization_type'), org_data.get('state_code'))
@@ -318,17 +318,16 @@ class DatabaseOperations:
         try:
             tender_id = await conn.fetchval("""
                 INSERT INTO tenders (
-                    organization_id, cnpj, ano, sequencial, control_number, title, description,
+                    organization_id, ano, sequencial, control_number, title, description,
                     government_level, tender_size, contracting_modality, modality_name,
                     total_estimated_value, total_homologated_value, publication_date,
                     state_code, municipality_code, status, process_category
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                ON CONFLICT (cnpj, ano, sequencial) DO UPDATE SET
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                ON CONFLICT (control_number) DO UPDATE SET
                     total_homologated_value = EXCLUDED.total_homologated_value,
-                    status = EXCLUDED.status,
-                    updated_at = CURRENT_TIMESTAMP
+                    status = EXCLUDED.status
                 RETURNING id
-            """, tender_data['organization_id'], tender_data['cnpj'], tender_data['ano'],
+            """, tender_data['organization_id'], tender_data['ano'],
                 tender_data['sequencial'], tender_data.get('control_number'),
                 tender_data.get('title'), tender_data.get('description'),
                 tender_data['government_level'], tender_data['tender_size'],
