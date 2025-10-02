@@ -186,37 +186,22 @@ class PNCPAPIClient:
 
         return await self._make_request('GET', url, headers=headers)
 
-    async def _fetch_single_page(self, start_date: str, end_date: str, modality: int,
-                                 state_code: str, page: int, semaphore: asyncio.Semaphore) -> Tuple[int, Dict]:
-        """Helper to fetch a single page with semaphore limiting"""
-        async with semaphore:
-            return await self.get_tenders_by_publication_date(
-                start_date, end_date, modality, state_code, page=page, page_size=20
-            )
-
     async def discover_tenders_for_state(self, state_code: str, start_date: str, end_date: str,
                                        modalities: List[int] = None, max_tenders: int = None) -> List[Dict[str, Any]]:
-        """Discover tenders for a specific state within date range (with async concurrency)
+        """Discover tenders for a specific state within date range (sequential fetching)
 
         Args:
             state_code: State code (e.g., 'SP')
             start_date: Start date in YYYYMMDD format
             end_date: End date in YYYYMMDD format
-            modalities: List of modality codes (default: [4, 6, 8])
+            modalities: List of modality codes (default: [1, 6, 9, 12])
             max_tenders: Maximum number of tenders to retrieve (None = all)
-
-        Performance: Uses concurrent page fetching for 3-5x speedup within rate limits
         """
         if modalities is None:
             # Use same default as ProcessingConfig (V5 optimized)
-            # 1: Concorrência, 6: Pregão Eletrônico, 9: Inexigibilidade, 12: Registro de Preços
-            # Removed: 8 (Dispensa) - high rejection rate
             modalities = [1, 6, 9, 12]
 
         all_tenders = []
-        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-
-        logger.info(f"🚀 Using concurrent fetching with {self.max_concurrent_requests} workers")
 
         for modality in modalities:
             if max_tenders and len(all_tenders) >= max_tenders:
@@ -224,82 +209,45 @@ class PNCPAPIClient:
                 break
 
             try:
-                # STEP 1: Fetch page 1 to determine total pages
-                status, first_response = await self.get_tenders_by_publication_date(
-                    start_date, end_date, modality, state_code, page=1, page_size=20
-                )
+                page = 1
+                while True:
+                    # Fetch page
+                    status, response = await self.get_tenders_by_publication_date(
+                        start_date, end_date, modality, state_code, page=page, page_size=20
+                    )
 
-                if status != 200:
-                    logger.error(f"Failed to get first page for {state_code}, modality {modality}: {status}")
-                    continue
+                    if status != 200:
+                        logger.error(f"Failed to get page {page} for {state_code}, modality {modality}: {status}")
+                        break
 
-                first_data = first_response.get('data', [])
-                if not first_data:
-                    logger.info(f"No tenders found for {state_code}, modality {modality}")
-                    continue
+                    data = response.get('data', [])
+                    if not data:
+                        if page == 1:
+                            logger.info(f"No tenders found for {state_code}, modality {modality}")
+                        break
 
-                # Add first page data
-                if max_tenders:
-                    remaining = max_tenders - len(all_tenders)
-                    first_data = first_data[:remaining]
+                    # Add data with max_tenders limiting
+                    if max_tenders:
+                        remaining = max_tenders - len(all_tenders)
+                        if remaining <= 0:
+                            break
+                        data = data[:remaining]
 
-                all_tenders.extend(first_data)
-                logger.info(f"Page 1/{first_response.get('totalPaginas', 1)} for {state_code}, modality {modality}: {len(first_data)} tenders")
+                    all_tenders.extend(data)
 
-                # Check if we're done
-                if max_tenders and len(all_tenders) >= max_tenders:
-                    logger.info(f"Reached max_tenders limit ({max_tenders}) after page 1")
-                    break
+                    # Log progress
+                    total_pages = response.get('totalPaginas', page)
+                    logger.info(f"Retrieved page {page} for {state_code}, modality {modality}: {len(data)} tenders (total: {len(all_tenders)})")
 
-                pages_remaining = first_response.get('paginasRestantes', 0)
-                if pages_remaining == 0:
-                    continue
+                    # Check if done
+                    if max_tenders and len(all_tenders) >= max_tenders:
+                        logger.info(f"Reached max_tenders limit ({max_tenders})")
+                        break
 
-                # STEP 2: Fetch remaining pages concurrently
-                total_pages = first_response.get('totalPaginas', 1)
-                pages_to_fetch = list(range(2, total_pages + 1))
+                    if response.get('paginasRestantes', 0) == 0:
+                        break
 
-                logger.info(f"⚡ Fetching pages 2-{total_pages} concurrently ({len(pages_to_fetch)} pages, {self.max_concurrent_requests} workers)")
-
-                # Create concurrent tasks with semaphore
-                tasks = [
-                    self._fetch_single_page(start_date, end_date, modality, state_code, page, semaphore)
-                    for page in pages_to_fetch
-                ]
-
-                # Fetch all pages concurrently
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                # Process results
-                pages_processed = 0
-                for page_num, result in zip(pages_to_fetch, results):
-                    if isinstance(result, Exception):
-                        logger.error(f"Error fetching page {page_num}: {result}")
-                        continue
-
-                    status, response = result
-                    if status == 200:
-                        data = response.get('data', [])
-                        if data:
-                            # Limit if needed
-                            if max_tenders:
-                                remaining = max_tenders - len(all_tenders)
-                                if remaining <= 0:
-                                    break
-                                data = data[:remaining]
-
-                            all_tenders.extend(data)
-                            pages_processed += 1
-
-                            # Log progress every 10 pages processed (not by page number)
-                            if pages_processed % 10 == 0:
-                                logger.info(f"Progress: {pages_processed}/{len(pages_to_fetch)} pages processed, total: {len(all_tenders)} tenders")
-
-                            if max_tenders and len(all_tenders) >= max_tenders:
-                                logger.info(f"Reached max_tenders limit ({max_tenders})")
-                                break
-                    else:
-                        logger.warning(f"Failed to get page {page_num}: status {status}")
+                    page += 1
 
                 logger.info(f"✅ Modality {modality} complete: {len(all_tenders)} total tenders")
 
