@@ -204,7 +204,8 @@ class APIConfig:
 
     # Base URLs
     BASE_URL = "https://pncp.gov.br/api"
-    CONSULTATION_BASE_URL = "https://pncp.gov.br/api/consulta"
+    CONSULTATION_BASE_URL = "https://pncp.gov.br/api/consulta"  # For discovery/search
+    PNCP_BASE_URL = "https://pncp.gov.br/api/pncp"  # For tender details (items, files, etc.)
 
     # Endpoints
     LOGIN_ENDPOINT = "/v1/usuarios/login"

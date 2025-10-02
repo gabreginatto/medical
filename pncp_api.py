@@ -56,7 +56,8 @@ class PNCPAPIClient:
     """PNCP API client with rate limiting (no authentication required)"""
 
     def __init__(self, rate_limiter: RateLimiter = None, max_concurrent_requests: int = 5):
-        self.consultation_url = APIConfig.CONSULTATION_BASE_URL
+        self.consultation_url = APIConfig.CONSULTATION_BASE_URL  # For discovery/search
+        self.pncp_url = APIConfig.PNCP_BASE_URL  # For tender details
         self.session: Optional[aiohttp.ClientSession] = None
         self.max_concurrent_requests = max_concurrent_requests
         self.rate_limiter = rate_limiter or RateLimiter(
@@ -165,7 +166,7 @@ class PNCPAPIClient:
 
     async def get_tender_items(self, cnpj: str, year: int, sequential: int) -> Tuple[int, Dict[str, Any]]:
         """Get all items for a specific tender"""
-        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
+        url = f"{self.pncp_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
         headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
@@ -173,7 +174,7 @@ class PNCPAPIClient:
     async def get_item_results(self, cnpj: str, year: int, sequential: int,
                              item_number: int) -> Tuple[int, Dict[str, Any]]:
         """Get results (bids) for a specific item"""
-        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados"
+        url = f"{self.pncp_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados"
         headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
@@ -181,7 +182,7 @@ class PNCPAPIClient:
     async def get_specific_item_result(self, cnpj: str, year: int, sequential: int,
                                      item_number: int, result_sequential: int) -> Tuple[int, Dict[str, Any]]:
         """Get specific result details for an item"""
-        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados/{result_sequential}"
+        url = f"{self.pncp_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens/{item_number}/resultados/{result_sequential}"
         headers = self._get_headers()
 
         return await self._make_request('GET', url, headers=headers)
@@ -264,7 +265,7 @@ class PNCPAPIClient:
         MASSIVE API savings: fetch 3 items instead of 50+
         Returns: List of item dictionaries
         """
-        url = f"{self.consultation_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
+        url = f"{self.pncp_url}/v1/orgaos/{cnpj}/compras/{year}/{sequential}/itens"
 
         # Limit page size to requested number of items
         params = {
