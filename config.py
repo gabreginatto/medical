@@ -139,7 +139,7 @@ class ProcessingConfig:
     # Async concurrency (Strategy #5 optimization)
     # Number of concurrent page requests within rate limit
     # Conservative: 3-5 (safe), Moderate: 6-8, Aggressive: 10+
-    max_concurrent_requests: int = 5  # 5 concurrent = ~30 effective req/min
+    max_concurrent_requests: int = 3  # 3 concurrent = ~20 effective req/min (safer)
 
     def __post_init__(self):
         """Set defaults for None values"""
