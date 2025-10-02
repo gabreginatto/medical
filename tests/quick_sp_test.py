@@ -82,17 +82,6 @@ async def quick_test():
         await api_client.start_session()
 
         classifier = TenderClassifier()
-
-        # Load Fernandes catalog (if available)
-        fernandes_products = []
-        catalog_path = os.getenv('FERNANDES_CATALOG_CSV', '')
-        if catalog_path and os.path.exists(catalog_path):
-            with open(catalog_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                fernandes_products = list(reader)
-            print(f"   📦 Loaded {len(fernandes_products)} Fernandes products")
-
-        product_matcher = ProductMatcher()
         print("   ✅ Components ready")
 
         # Create discovery engine
