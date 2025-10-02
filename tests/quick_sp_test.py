@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Quick SP State Test - Get 5 Medical Tenders FAST
-Optimized for speed: short date range, early exit, targeted search
+V5 Discovery Test with Database Save
+Tests async concurrency optimization + ID-based deduplication
+Discovers medical tenders and saves to database (items processing skipped)
 """
 
 import asyncio
 import logging
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -23,9 +24,6 @@ from database import create_db_manager_from_env, DatabaseOperations
 from pncp_api import PNCPAPIClient
 from classifier import TenderClassifier
 from optimized_discovery import OptimizedTenderDiscovery, print_metrics_summary
-from item_processor import ItemProcessor
-from product_matcher import ProductMatcher
-import csv
 
 # Configure logging
 logging.basicConfig(
@@ -174,11 +172,92 @@ async def quick_test():
             print("      - Adding more modalities (add [8] for Dispensa)")
             return
 
-        # Check for completed tenders with items
-        print(f"\n3️⃣  Finding completed tenders with items...")
+        # Save tenders to database
+        print(f"\n3️⃣  Saving {len(medical_tenders)} medical tenders to database...")
+        saved_count = 0
+        skipped_count = 0
+
+        for tender in medical_tenders:
+            try:
+                # Check if tender already exists by control number
+                control_num = tender.get('numeroControlePNCP')
+                if not control_num:
+                    logger.warning("Tender missing control number, skipping")
+                    skipped_count += 1
+                    continue
+
+                # Extract organization data
+                org_data = tender.get('orgaoEntidade', {})
+                cnpj = org_data.get('cnpj', '')
+                if not cnpj:
+                    logger.warning(f"Tender {control_num} missing CNPJ, skipping")
+                    skipped_count += 1
+                    continue
+
+                # Insert or get organization ID
+                org_id = await db_ops.insert_organization({
+                    'cnpj': cnpj,
+                    'name': org_data.get('razaoSocial', ''),
+                    'government_level': tender.get('government_level', 'unknown'),
+                    'state_code': tender.get('uf', 'SP')
+                })
+
+                # Insert tender
+                tender_id = await db_ops.insert_tender({
+                    'organization_id': org_id,
+                    'cnpj': cnpj,
+                    'ano': tender.get('anoCompra'),
+                    'sequencial': tender.get('sequencialCompra'),
+                    'control_number': control_num,
+                    'title': tender.get('objetoCompra', '')[:1000],  # Truncate if needed
+                    'government_level': tender.get('government_level', 'unknown'),
+                    'tender_size': tender.get('tender_size', 'unknown'),
+                    'contracting_modality': tender.get('modalidadeId'),
+                    'modality_name': tender.get('modalidadeNome'),
+                    'total_estimated_value': tender.get('valorTotalEstimado', 0),
+                    'total_homologated_value': tender.get('valorTotalHomologado', 0),
+                    'publication_date': tender.get('dataPublicacaoPncp'),
+                    'state_code': tender.get('uf', 'SP'),
+                    'status': 'discovered'
+                })
+
+                saved_count += 1
+
+                if saved_count % 50 == 0:
+                    print(f"   Progress: {saved_count}/{len(medical_tenders)} tenders saved...")
+
+            except Exception as e:
+                logger.error(f"Error saving tender {tender.get('numeroControlePNCP')}: {e}")
+                skipped_count += 1
+                continue
+
+        print(f"\n   ✅ Database save complete:")
+        print(f"      Saved: {saved_count} tenders")
+        print(f"      Skipped: {skipped_count} tenders")
+
+        # Final summary
+        print("\\n" + "=" * 70)
+        print("📊 TEST SUMMARY")
+        print("=" * 70)
+        print(f"⏱️  Total Time: {elapsed:.1f}s")
+        print(f"📋 Medical Tenders Discovered: {len(medical_tenders)}")
+        print(f"💾 Saved to Database: {saved_count} tenders")
+        if skipped_count > 0:
+            print(f"⚠️  Skipped: {skipped_count} tenders")
+
+        print(f"\\n🚀 API Performance:")
+        print(f"   Total API calls: {metrics.total_api_calls}")
+        print(f"   Speed: {len(medical_tenders) / max(elapsed, 1):.1f} tenders/second")
+
+        print(f"\\n✅ Discovery & database save completed!")
+        print(f"\\n⏹️  Items processing skipped (as requested)")
+        print(f"\\n💡 Next step: Run item processing on saved tenders")
+
+        # REMOVED: All item processing code below
+        return
 
         completed_tenders = []
-        for tender in medical_tenders[:20]:  # Check first 20 to find 5 completed
+        for tender in medical_tenders[:20]:  # REMOVED CODE BELOW
             if tender.get('valorTotalHomologado', 0) > 0:
                 completed_tenders.append(tender)
                 if len(completed_tenders) >= 5:
