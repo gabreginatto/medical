@@ -277,7 +277,11 @@ class PNCPAPIClient:
             status, response = await self._make_request('GET', url, params=params)
 
             if status == 200:
-                items = response.get('data', [])
+                # Handle both response formats: direct list or dict with 'data' key
+                if isinstance(response, list):
+                    items = response
+                else:
+                    items = response.get('data', [])
                 # Return only the requested number
                 return items[:max_items]
             else:
