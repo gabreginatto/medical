@@ -191,10 +191,16 @@ async def quick_test():
                     'state_code': tender.get('uf', 'SP')
                 })
 
-                # Insert tender (only organization_id and control_number exist in schema)
+                # Insert tender with correct column names
                 tender_id = await db_ops.insert_tender({
                     'organization_id': org_id,
-                    'control_number': control_num
+                    'control_number': control_num,
+                    'year': tender.get('anoCompra'),
+                    'sequential_number': tender.get('sequencialCompra'),
+                    'state_code': tender.get('uf'),
+                    'modality_code': tender.get('modalidadeId'),
+                    'publication_date': tender.get('dataPublicacaoPncp'),
+                    'total_homologated_value': tender.get('valorTotalHomologado')
                 })
 
                 saved_count += 1

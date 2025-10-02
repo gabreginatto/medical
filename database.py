@@ -316,14 +316,24 @@ class DatabaseOperations:
         """Insert tender and return ID"""
         conn = await self.db_manager.get_connection()
         try:
+            # Convert publication_date from string to date if needed
+            pub_date = tender_data.get('publication_date')
+            if pub_date and isinstance(pub_date, str):
+                from datetime import datetime
+                pub_date = datetime.fromisoformat(pub_date.split('T')[0]).date()
+
             tender_id = await conn.fetchval("""
                 INSERT INTO tenders (
-                    organization_id, control_number
-                ) VALUES ($1, $2)
+                    organization_id, control_number, year, sequential_number,
+                    state_code, modality_code, publication_date, total_homologated_value
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 ON CONFLICT (control_number) DO UPDATE SET
-                    organization_id = EXCLUDED.organization_id
+                    total_homologated_value = EXCLUDED.total_homologated_value
                 RETURNING id
-            """, tender_data['organization_id'], tender_data.get('control_number'))
+            """, tender_data['organization_id'], tender_data.get('control_number'),
+                tender_data.get('year'), tender_data.get('sequential_number'),
+                tender_data.get('state_code'), tender_data.get('modality_code'),
+                pub_date, tender_data.get('total_homologated_value'))
             return tender_id
         finally:
             await conn.close()

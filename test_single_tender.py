@@ -77,7 +77,13 @@ async def test_single_tender():
 
         tender_id = await db_ops.insert_tender({
             'organization_id': org_id,
-            'control_number': control_num
+            'control_number': control_num,
+            'year': test_tender.get('anoCompra'),
+            'sequential_number': test_tender.get('sequencial'),
+            'state_code': test_tender.get('uf'),
+            'modality_code': test_tender.get('modalidadeId'),
+            'publication_date': test_tender.get('dataPublicacaoPncp'),
+            'total_homologated_value': test_tender.get('valorTotalHomologado')
         })
 
         print(f"   ✅ Tender saved with ID: {tender_id}")
