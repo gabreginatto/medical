@@ -198,8 +198,8 @@ class PNCPAPIClient:
             max_tenders: Maximum number of tenders to retrieve (None = all)
         """
         if modalities is None:
-            # Use same default as ProcessingConfig (V5 optimized)
-            modalities = [1, 6, 9, 12]
+            # Use same default as ProcessingConfig (V5 optimized, prioritized by volume)
+            modalities = [6, 12, 1, 9]  # Pregão first (80% of tenders)
 
         all_tenders = []
 

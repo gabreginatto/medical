@@ -45,7 +45,7 @@ async def quick_test():
         min_tender_value=5_000.0,  # Lower threshold for more results
         max_tender_value=2_000_000.0,
         min_match_score=40.0,  # Lower threshold = more matches
-        allowed_modalities=[6, 8],  # Pregão + Dispensa for more variety
+        allowed_modalities=[6, 12, 1, 9],  # V5 prioritized: Pregão first (80% of tenders)
         use_org_cache=True,  # Use cache to identify medical orgs faster
         catmat_boost_enabled=True  # Prioritize CATMAT-coded items
     )

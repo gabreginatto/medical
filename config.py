@@ -151,13 +151,13 @@ class ProcessingConfig:
             self.government_levels = [GovernmentLevel.FEDERAL, GovernmentLevel.STATE, GovernmentLevel.MUNICIPAL]
 
         if self.allowed_modalities is None:
-            # Focus on modalities with high medical relevance and reliable item data
-            # 1: Concorrência (large equipment/infrastructure)
-            # 6: Pregão Eletrônico (most common, 80% of medical procurement)
-            # 9: Inexigibilidade (specialized/patented products)
-            # 12: Registro de Preços (ongoing supply contracts)
+            # PRIORITIZED by volume and medical relevance (fetch high-volume first)
+            # 6: Pregão Eletrônico (80% of medical tenders) - HIGHEST PRIORITY
+            # 12: Credenciamento (ongoing contracts) - HIGH
+            # 1: Concorrência Eletrônica (large equipment/infrastructure) - MEDIUM
+            # 9: Inexigibilidade (specialized/patented, rare) - LOW
             # Removed: 8 (Dispensa) - high rejection rate due to missing item data
-            self.allowed_modalities = [1, 6, 9, 12]
+            self.allowed_modalities = [6, 12, 1, 9]
 
         if self.allowed_org_types is None:
             self.allowed_org_types = [
