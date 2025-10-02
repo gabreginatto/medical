@@ -295,21 +295,19 @@ class DatabaseOperations:
                 await conn.execute("""
                     UPDATE organizations
                     SET name = $2, government_level = $3, organization_type = $4,
-                        state_code = $5, municipality_name = $6, updated_at = CURRENT_TIMESTAMP
+                        state_code = $5, updated_at = CURRENT_TIMESTAMP
                     WHERE cnpj = $1
                 """, org_data['cnpj'], org_data['name'], org_data['government_level'],
-                    org_data.get('organization_type'), org_data.get('state_code'),
-                    org_data.get('municipality_name'))
+                    org_data.get('organization_type'), org_data.get('state_code'))
                 return existing['id']
             else:
                 # Insert new
                 org_id = await conn.fetchval("""
-                    INSERT INTO organizations (cnpj, name, government_level, organization_type, state_code, municipality_name)
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    INSERT INTO organizations (cnpj, name, government_level, organization_type, state_code)
+                    VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
                 """, org_data['cnpj'], org_data['name'], org_data['government_level'],
-                    org_data.get('organization_type'), org_data.get('state_code'),
-                    org_data.get('municipality_name'))
+                    org_data.get('organization_type'), org_data.get('state_code'))
                 return org_id
         finally:
             await conn.close()
