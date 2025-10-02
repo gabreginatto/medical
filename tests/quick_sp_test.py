@@ -195,7 +195,6 @@ async def quick_test():
                 tender_id = await db_ops.insert_tender({
                     'organization_id': org_id,
                     'control_number': control_num,
-                    'title': tender.get('objetoCompra', '')[:1000],  # Truncate if needed
                     'government_level': tender.get('government_level', 'unknown'),
                     'tender_size': tender.get('tender_size', 'unknown'),
                     'contracting_modality': tender.get('modalidadeId'),
