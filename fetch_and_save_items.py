@@ -39,19 +39,10 @@ async def fetch_and_save_items():
         await api_client.start_session()
         print("   ✅ Initialized")
 
-        # Get all tenders from database
-        print("\n2️⃣  Fetching tenders from database...")
-        conn = await db_manager.get_connection()
-        tenders = await conn.fetch("""
-            SELECT t.id, t.control_number, t.year, t.sequential_number,
-                   o.cnpj, o.name as org_name
-            FROM tenders t
-            JOIN organizations o ON t.organization_id = o.id
-            ORDER BY t.id
-        """)
-        await conn.close()
-
-        print(f"   ✅ Found {len(tenders)} tenders")
+        # Get tenders that don't have items yet (unprocessed)
+        print("\n2️⃣  Fetching unprocessed tenders from database...")
+        tenders = await db_ops.get_unprocessed_tenders()
+        print(f"   ✅ Found {len(tenders)} tenders without items")
 
         # Process each tender
         print("\n3️⃣  Fetching items from PNCP API...")
@@ -65,7 +56,7 @@ async def fetch_and_save_items():
             cnpj = tender['cnpj']
             year = tender['year']
             sequential = tender['sequential_number']
-            control_num = tender['control_number']
+            control_num = tender.get('control_number', f"tender_{tender_id}")
 
             try:
                 # Skip if year or sequential is None

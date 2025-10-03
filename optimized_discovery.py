@@ -141,6 +141,10 @@ class OptimizedTenderDiscovery:
         processed = await self._stage4_full_processing(sampled)
         logger.info(f"⚡ Stage 4 complete: {len(processed)} tenders fully processed")
 
+        # STAGE 5: Save tenders to database
+        saved_count = await self._save_tenders_to_db(processed, state)
+        logger.info(f"💾 Stage 5 complete: {saved_count} tenders saved to database")
+
         # Summary
         logger.info(f"✅ Discovery complete: {self.metrics.total_api_calls} API calls, "
                    f"{self.metrics.total_duration:.1f}s total, "
@@ -499,6 +503,54 @@ class OptimizedTenderDiscovery:
         self.metrics.stage4_full_processing.duration_seconds = (datetime.now() - start_time).total_seconds()
 
         return processed
+
+    async def _save_tenders_to_db(self, tenders: List[Dict], state: str) -> int:
+        """Save processed tenders to database"""
+        saved_count = 0
+
+        for tender in tenders:
+            try:
+                # First, ensure organization exists
+                org_data = tender.get('orgaoEntidade', {})
+                cnpj = self._normalize_cnpj(org_data.get('cnpj', ''))
+
+                if not cnpj:
+                    logger.warning(f"Tender {tender.get('numeroControlePNCP')} has no CNPJ, skipping")
+                    continue
+
+                org_id = await self.db_ops.insert_organization({
+                    'cnpj': cnpj,
+                    'name': org_data.get('razaoSocial', 'Unknown'),
+                    'government_level': org_data.get('esferaId', 'Unknown'),
+                    'organization_type': 'Public',  # Default for PNCP
+                    'state_code': state
+                })
+
+                # Get year and sequential directly from API response
+                year = tender.get('anoCompra')
+                sequential = tender.get('sequencialCompra')
+
+                # Prepare tender data
+                tender_data = {
+                    'organization_id': org_id,
+                    'control_number': tender.get('numeroControlePNCP'),
+                    'year': year,
+                    'sequential_number': sequential,
+                    'state_code': state,
+                    'modality_code': tender.get('modalidadeId'),
+                    'publication_date': tender.get('dataPublicacaoPncp'),
+                    'total_homologated_value': tender.get('valorTotalHomologado', 0)
+                }
+
+                # Insert tender
+                tender_id = await self.db_ops.insert_tender(tender_data)
+                saved_count += 1
+
+            except Exception as e:
+                logger.error(f"Error saving tender {tender.get('numeroControlePNCP')}: {e}")
+                continue
+
+        return saved_count
 
     def _normalize_cnpj(self, cnpj: str) -> str:
         """Normalize CNPJ to digits only"""

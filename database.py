@@ -374,9 +374,10 @@ class DatabaseOperations:
         conn = await self.db_manager.get_connection()
         try:
             query = """
-                SELECT t.id, t.cnpj, t.ano, t.sequencial, t.government_level,
-                       t.total_homologated_value, t.state_code
+                SELECT t.id, t.control_number, t.year, t.sequential_number,
+                       t.total_homologated_value, t.state_code, o.cnpj
                 FROM tenders t
+                JOIN organizations o ON t.organization_id = o.id
                 LEFT JOIN tender_items ti ON t.id = ti.tender_id
                 WHERE t.total_homologated_value > 0
                   AND ti.tender_id IS NULL
