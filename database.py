@@ -354,17 +354,6 @@ class DatabaseOperations:
                     catmat_codes, has_medical_catmat, catmat_score_boost,
                     sample_analyzed, medical_confidence_score
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-                ON CONFLICT (tender_id, item_number) DO UPDATE SET
-                    homologated_unit_value = EXCLUDED.homologated_unit_value,
-                    homologated_total_value = EXCLUDED.homologated_total_value,
-                    winner_name = EXCLUDED.winner_name,
-                    winner_cnpj = EXCLUDED.winner_cnpj,
-                    catmat_codes = EXCLUDED.catmat_codes,
-                    has_medical_catmat = EXCLUDED.has_medical_catmat,
-                    catmat_score_boost = EXCLUDED.catmat_score_boost,
-                    sample_analyzed = EXCLUDED.sample_analyzed,
-                    medical_confidence_score = EXCLUDED.medical_confidence_score,
-                    updated_at = CURRENT_TIMESTAMP
             """, [
                 (item['tender_id'], item['item_number'], item['description'],
                  item.get('unit'), item.get('quantity'),
@@ -508,6 +497,33 @@ class DatabaseOperations:
                     records_matched = $4, error_message = $5
                 WHERE id = $1
             """, log_id, status, records_processed, records_matched, error_message)
+        finally:
+            await conn.close()
+
+    async def insert_matched_product(self, match_data: Dict[str, Any]):
+        """Insert a matched product (tender item matched to Fernandes product)"""
+        conn = await self.db_manager.get_connection()
+        try:
+            await conn.execute("""
+                INSERT INTO matched_products (
+                    tender_item_id, fernandes_product_code, fernandes_product_description,
+                    match_score, fob_price_usd, moq,
+                    price_comparison_brl, price_comparison_usd, exchange_rate,
+                    price_difference_percent, is_competitive
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (tender_item_id, fernandes_product_code) DO UPDATE SET
+                    match_score = EXCLUDED.match_score,
+                    price_comparison_brl = EXCLUDED.price_comparison_brl,
+                    price_comparison_usd = EXCLUDED.price_comparison_usd,
+                    price_difference_percent = EXCLUDED.price_difference_percent,
+                    is_competitive = EXCLUDED.is_competitive,
+                    updated_at = CURRENT_TIMESTAMP
+            """, match_data['tender_item_id'], match_data['fernandes_product_code'],
+                match_data['fernandes_product_description'], match_data['match_score'],
+                match_data['fob_price_usd'], match_data['moq'],
+                match_data['price_comparison_brl'], match_data['price_comparison_usd'],
+                match_data['exchange_rate'], match_data['price_difference_percent'],
+                match_data['is_competitive'])
         finally:
             await conn.close()
 
