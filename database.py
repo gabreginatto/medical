@@ -509,21 +509,19 @@ class DatabaseOperations:
                     tender_item_id, fernandes_product_code, fernandes_product_description,
                     match_score, fob_price_usd, moq,
                     price_comparison_brl, price_comparison_usd, exchange_rate,
-                    price_difference_percent, is_competitive
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    price_difference_percent
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 ON CONFLICT (tender_item_id, fernandes_product_code) DO UPDATE SET
                     match_score = EXCLUDED.match_score,
                     price_comparison_brl = EXCLUDED.price_comparison_brl,
                     price_comparison_usd = EXCLUDED.price_comparison_usd,
                     price_difference_percent = EXCLUDED.price_difference_percent,
-                    is_competitive = EXCLUDED.is_competitive,
                     updated_at = CURRENT_TIMESTAMP
             """, match_data['tender_item_id'], match_data['fernandes_product_code'],
                 match_data['fernandes_product_description'], match_data['match_score'],
                 match_data['fob_price_usd'], match_data['moq'],
                 match_data['price_comparison_brl'], match_data['price_comparison_usd'],
-                match_data['exchange_rate'], match_data['price_difference_percent'],
-                match_data['is_competitive'])
+                match_data['exchange_rate'], match_data['price_difference_percent'])
         finally:
             await conn.close()
 

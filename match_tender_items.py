@@ -65,8 +65,6 @@ async def match_tender_items():
     matches_found = 0
     total_processed = 0
 
-    usd_to_brl = 5.0  # Exchange rate
-
     for i, item in enumerate(items, 1):
         total_processed += 1
 
@@ -77,13 +75,11 @@ async def match_tender_items():
             product, score = match_result
             matches_found += 1
 
-            # Calculate price comparison
+            # Calculate price comparison (both prices now in BRL)
             homologated_brl = float(item['homologated_unit_value'])
-            fob_usd = float(product['FOB NINGBO USD/unit'])
-            fob_brl = fob_usd * usd_to_brl
+            fob_brl = float(product['Price BRL'])
 
             price_diff_percent = ((homologated_brl - fob_brl) / homologated_brl * 100) if homologated_brl > 0 else 0
-            is_competitive = price_diff_percent > 10  # At least 10% cheaper
 
             # Save to database
             match_data = {
@@ -91,13 +87,12 @@ async def match_tender_items():
                 'fernandes_product_code': product['CÓDIGO'],
                 'fernandes_product_description': product['DESCRIÇÃO'],
                 'match_score': score,
-                'fob_price_usd': fob_usd,
+                'fob_price_usd': None,  # No longer using USD prices
                 'moq': product['MOQ/unit'],
                 'price_comparison_brl': homologated_brl,
-                'price_comparison_usd': homologated_brl / usd_to_brl,
-                'exchange_rate': usd_to_brl,
-                'price_difference_percent': price_diff_percent,
-                'is_competitive': is_competitive
+                'price_comparison_usd': None,  # No longer using USD prices
+                'exchange_rate': None,  # No longer needed
+                'price_difference_percent': price_diff_percent
             }
 
             # Insert into matched_products table
@@ -109,9 +104,8 @@ async def match_tender_items():
                 print(f"   Fernandes Product: {product['CÓDIGO']} - {product['DESCRIÇÃO'][:50]}...")
                 print(f"   Match Score: {score:.1f}%")
                 print(f"   Market Price: R$ {homologated_brl:.2f}")
-                print(f"   Our FOB Price: R$ {fob_brl:.2f} (${fob_usd:.4f})")
+                print(f"   Our FOB Price: R$ {fob_brl:.2f}")
                 print(f"   Savings: {price_diff_percent:.1f}%")
-                print(f"   Competitive: {'✅ Yes' if is_competitive else '❌ No'}")
 
         if i % 50 == 0:
             print(f"   Progress: {i}/{len(items)} items processed, {matches_found} matches found...")
@@ -123,15 +117,6 @@ async def match_tender_items():
     print(f"Total Items Processed: {total_processed}")
     print(f"Matches Found: {matches_found}")
     print(f"Match Rate: {matches_found / total_processed * 100:.1f}%")
-
-    # Get competitive opportunities
-    conn = await db_manager.get_connection()
-    competitive_count = await conn.fetchval("""
-        SELECT COUNT(*) FROM matched_products WHERE is_competitive = true
-    """)
-    await conn.close()
-
-    print(f"Competitive Opportunities: {competitive_count}")
 
     print("\n✅ Matching complete!")
 
