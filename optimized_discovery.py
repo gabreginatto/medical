@@ -172,7 +172,7 @@ class OptimizedTenderDiscovery:
             raw_tenders = await self.api_client.discover_tenders_for_state(
                 state, start_date, end_date,
                 modalities=self.config.allowed_modalities,
-                max_tenders=1000  # Limited for quick testing with API fix
+                max_tenders=10000  # Increased limit for production use
             )
 
             # Update metrics
