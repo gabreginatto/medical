@@ -18,11 +18,9 @@ logger = logging.getLogger(__name__)
 class RateLimiter:
     """Simple rate limiter for API requests"""
 
-    def __init__(self, max_requests_per_minute: int = 60, max_requests_per_hour: int = 1000):
+    def __init__(self, max_requests_per_minute: int = 60):
         self.max_per_minute = max_requests_per_minute
-        self.max_per_hour = max_requests_per_hour
         self.minute_requests = []
-        self.hour_requests = []
 
     async def wait_if_needed(self):
         """Wait if rate limits would be exceeded"""
@@ -30,7 +28,6 @@ class RateLimiter:
 
         # Clean old requests
         self.minute_requests = [req_time for req_time in self.minute_requests if now - req_time < 60]
-        self.hour_requests = [req_time for req_time in self.hour_requests if now - req_time < 3600]
 
         # Check minute limit
         if len(self.minute_requests) >= self.max_per_minute:
@@ -40,17 +37,8 @@ class RateLimiter:
                 await asyncio.sleep(sleep_time)
                 return await self.wait_if_needed()
 
-        # Check hour limit
-        if len(self.hour_requests) >= self.max_per_hour:
-            sleep_time = 3600 - (now - self.hour_requests[0])
-            if sleep_time > 0:
-                logger.warning(f"Hourly rate limit reached, sleeping for {sleep_time:.1f} seconds")
-                await asyncio.sleep(sleep_time)
-                return await self.wait_if_needed()
-
         # Record this request
         self.minute_requests.append(now)
-        self.hour_requests.append(now)
 
 class PNCPAPIClient:
     """PNCP API client with rate limiting (no authentication required)"""
@@ -61,8 +49,7 @@ class PNCPAPIClient:
         self.session: Optional[aiohttp.ClientSession] = None
         self.max_concurrent_requests = max_concurrent_requests
         self.rate_limiter = rate_limiter or RateLimiter(
-            ProcessingConfig().max_requests_per_minute,
-            ProcessingConfig().max_requests_per_hour
+            ProcessingConfig().max_requests_per_minute
         )
 
     async def __aenter__(self):
