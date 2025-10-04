@@ -214,7 +214,7 @@ class PNCPAPIClient:
                 while True:
                     # Fetch page
                     status, response = await self.get_tenders_by_publication_date(
-                        start_date, end_date, modality, state_code, page=page, page_size=20
+                        start_date, end_date, modality, state_code, page=page, page_size=500
                     )
 
                     if status != 200:
