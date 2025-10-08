@@ -147,14 +147,25 @@ class PNCPMedicalProcessor:
 
         logger.info(f"✅ Product matching complete")
 
-    async def run_complete_workflow(self, start_date: str, end_date: str, states: List[str] = None):
-        """Run complete workflow: discovery → items → matching"""
+    async def run_complete_workflow(self, start_date: str, end_date: str, states: List[str] = None, enable_matching: bool = False):
+        """Run complete workflow: discovery → items → (optional) matching
+
+        Args:
+            start_date: Start date in YYYYMMDD format
+            end_date: End date in YYYYMMDD format
+            states: List of state codes to process
+            enable_matching: If True, run Phase 3 (product matching). Default False.
+        """
 
         logger.info("\n" + "=" * 70)
         logger.info("🚀 PNCP MEDICAL DATA PROCESSING - COMPLETE WORKFLOW")
         logger.info("=" * 70)
         logger.info(f"📅 Date Range: {start_date} to {end_date}")
         logger.info(f"🗺️  States: {', '.join(states) if states else 'ALL'}")
+        if enable_matching:
+            logger.info("🔍 Product Matching: ENABLED")
+        else:
+            logger.info("🔍 Product Matching: SKIPPED (use --match to enable)")
         logger.info("=" * 70)
 
         workflow_start = datetime.now()
@@ -189,16 +200,23 @@ class PNCPMedicalProcessor:
             phase2_time = (datetime.now() - phase2_start).total_seconds()
             logger.info(f"⏱️  Phase 2 completed in {phase2_time:.1f}s")
 
-            # Phase 3: Match Products
-            logger.info("\n" + "=" * 70)
-            logger.info("PHASE 3: PRODUCT MATCHING")
-            logger.info("=" * 70)
-            phase3_start = datetime.now()
+            # Phase 3: Match Products (Optional)
+            phase3_time = 0
+            if enable_matching:
+                logger.info("\n" + "=" * 70)
+                logger.info("PHASE 3: PRODUCT MATCHING")
+                logger.info("=" * 70)
+                phase3_start = datetime.now()
 
-            await self.match_products()
+                await self.match_products()
 
-            phase3_time = (datetime.now() - phase3_start).total_seconds()
-            logger.info(f"⏱️  Phase 3 completed in {phase3_time:.1f}s")
+                phase3_time = (datetime.now() - phase3_start).total_seconds()
+                logger.info(f"⏱️  Phase 3 completed in {phase3_time:.1f}s")
+            else:
+                logger.info("\n" + "=" * 70)
+                logger.info("PHASE 3: PRODUCT MATCHING - SKIPPED")
+                logger.info("=" * 70)
+                logger.info("💡 Tip: Use Looker Studio to explore items, then run ai_matching/ for targeted matches")
 
             # Summary
             total_time = (datetime.now() - workflow_start).total_seconds()
@@ -207,7 +225,10 @@ class PNCPMedicalProcessor:
             logger.info("=" * 70)
             logger.info(f"Phase 1 (Discovery): {phase1_time:.1f}s")
             logger.info(f"Phase 2 (Items):     {phase2_time:.1f}s")
-            logger.info(f"Phase 3 (Matching):  {phase3_time:.1f}s")
+            if enable_matching:
+                logger.info(f"Phase 3 (Matching):  {phase3_time:.1f}s")
+            else:
+                logger.info(f"Phase 3 (Matching):  SKIPPED")
             logger.info(f"Total Time:          {total_time:.1f}s")
             logger.info("=" * 70)
 
@@ -339,6 +360,7 @@ Examples:
     parser.add_argument('--start-date', help='Start date (YYYYMMDD)')
     parser.add_argument('--end-date', help='End date (YYYYMMDD)')
     parser.add_argument('--states', nargs='*', help='State codes (e.g., SP RJ MG)')
+    parser.add_argument('--match', action='store_true', help='Enable Phase 3 product matching (default: skip)')
     parser.add_argument('--discovery-only', action='store_true', help='Only run discovery phase')
     parser.add_argument('--items-only', action='store_true', help='Only fetch items (skip discovery)')
     parser.add_argument('--matching-only', action='store_true', help='Only match products (skip discovery/items)')
@@ -411,7 +433,7 @@ Examples:
 
         else:
             # Full workflow
-            await processor.run_complete_workflow(args.start_date, args.end_date, args.states)
+            await processor.run_complete_workflow(args.start_date, args.end_date, args.states, enable_matching=args.match)
 
         logger.info(f"\n📝 Full log saved to: {log_file}")
 

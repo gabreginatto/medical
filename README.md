@@ -2,6 +2,23 @@
 
 A comprehensive system for discovering, processing, and analyzing medical supply tenders from Brazil's Portal Nacional de Contratações Públicas (PNCP), with automated matching to Fernandes product catalog and competitive price analysis.
 
+## 🆕 V8: Looker-First Approach
+
+**New in V8:** Phase 3 (Product Matching) is now OPTIONAL. The recommended workflow is:
+1. Run `main.py` daily to collect data (fast - no matching)
+2. Explore data visually in Looker Studio
+3. Run `ai_matching/` module for specific product categories you care about
+
+**See `V8_WORKFLOW.md` for complete guide.**
+
+```bash
+# V8 daily run (Phase 3 skipped by default - faster!)
+python3 main.py --start 20250101 --end 20250131 --states SP RJ
+
+# Optional: Enable Phase 3 if you want automatic fuzzy matching
+python3 main.py --start 20250101 --end 20250131 --states SP --match
+```
+
 ## 🎯 What This System Does
 
 This system automatically:
