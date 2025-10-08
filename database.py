@@ -369,8 +369,13 @@ class DatabaseOperations:
         finally:
             await conn.close()
 
-    async def get_unprocessed_tenders(self, state_code: str = None, limit: int = 100) -> List[Dict]:
-        """Get tenders that haven't been processed for item extraction"""
+    async def get_unprocessed_tenders(self, state_code: str = None, limit: int = 500) -> List[Dict]:
+        """Get tenders that haven't been processed for item extraction
+
+        Args:
+            state_code: Optional state filter
+            limit: Maximum number of tenders to return (default: 500, increased from 100)
+        """
         conn = await self.db_manager.get_connection()
         try:
             query = """
