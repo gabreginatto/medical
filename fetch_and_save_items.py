@@ -22,30 +22,38 @@ logger = logging.getLogger(__name__)
 async def fetch_and_save_items():
     """Fetch items for all tenders in database and save them"""
 
-    print("=" * 70)
-    print("📦 FETCH AND SAVE TENDER ITEMS")
-    print("=" * 70)
+    logger.info("=" * 70)
+    logger.info("📦 FETCH AND SAVE TENDER ITEMS")
+    logger.info("=" * 70)
 
     db_manager = None
     api_client = None
+    start_time = datetime.now()
 
     try:
         # Initialize
-        print("\n1️⃣  Initializing...")
+        logger.info("")
+        logger.info("1️⃣  Initializing...")
         db_manager = create_db_manager_from_env()
         db_ops = DatabaseOperations(db_manager)
 
         api_client = PNCPAPIClient(max_concurrent_requests=5)
         await api_client.start_session()
-        print("   ✅ Initialized")
+        logger.info("✅ Initialized")
 
         # Get tenders that don't have items yet (unprocessed)
-        print("\n2️⃣  Fetching unprocessed tenders from database...")
+        logger.info("")
+        logger.info("2️⃣  Fetching unprocessed tenders from database...")
         tenders = await db_ops.get_unprocessed_tenders()
-        print(f"   ✅ Found {len(tenders)} tenders without items")
+        logger.info(f"✅ Found {len(tenders)} tenders without items")
+
+        if len(tenders) == 0:
+            logger.info("No tenders to process. Exiting.")
+            return
 
         # Process each tender
-        print("\n3️⃣  Fetching items from PNCP API...")
+        logger.info("")
+        logger.info("3️⃣  Fetching items from PNCP API...")
         total_items = 0
         tenders_with_items = 0
         tenders_without_items = 0
@@ -86,8 +94,6 @@ async def fetch_and_save_items():
 
                 if not items_list:
                     tenders_without_items += 1
-                    if i % 10 == 0:
-                        print(f"   Progress: {i}/{len(tenders)} tenders processed...")
                     continue
 
                 # Process items for database
@@ -148,35 +154,55 @@ async def fetch_and_save_items():
                     total_items += len(items_data)
                     tenders_with_items += 1
 
+                # Progress logging every 10 tenders
                 if i % 10 == 0:
-                    print(f"   Progress: {i}/{len(tenders)} tenders, {total_items} items saved...")
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    rate = i / elapsed if elapsed > 0 else 0
+                    remaining = len(tenders) - i
+                    eta = remaining / rate if rate > 0 else 0
+
+                    logger.info(f"Progress: {i}/{len(tenders)} tenders ({i/len(tenders)*100:.1f}%) | "
+                               f"Items: {total_items} | "
+                               f"Rate: {rate:.2f} tenders/sec | "
+                               f"ETA: {eta/60:.1f} min")
+
+                # Checkpoint every 50 tenders
+                if i % 50 == 0:
+                    logger.info(f"📊 Checkpoint - With items: {tenders_with_items}, "
+                               f"Without items: {tenders_without_items}, "
+                               f"Failed: {failed_tenders}")
 
             except Exception as e:
                 logger.error(f"Error processing tender {control_num}: {e}")
                 failed_tenders += 1
                 continue
 
-        print(f"\n   ✅ Item fetching complete")
+        logger.info("")
+        logger.info("✅ Item fetching complete")
 
         # Summary
-        print("\n" + "=" * 70)
-        print("📊 SUMMARY")
-        print("=" * 70)
-        print(f"Total Tenders Processed: {len(tenders)}")
-        print(f"Tenders with Items: {tenders_with_items}")
-        print(f"Tenders without Items: {tenders_without_items}")
-        print(f"Failed Tenders: {failed_tenders}")
-        print(f"Total Items Saved: {total_items}")
+        elapsed_total = (datetime.now() - start_time).total_seconds()
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("📊 SUMMARY")
+        logger.info("=" * 70)
+        logger.info(f"Total Tenders Processed: {len(tenders)}")
+        logger.info(f"Tenders with Items: {tenders_with_items}")
+        logger.info(f"Tenders without Items: {tenders_without_items}")
+        logger.info(f"Failed Tenders: {failed_tenders}")
+        logger.info(f"Total Items Saved: {total_items}")
 
         if tenders_with_items > 0:
             avg_items = total_items / tenders_with_items
-            print(f"Average Items per Tender: {avg_items:.1f}")
+            logger.info(f"Average Items per Tender: {avg_items:.1f}")
 
-        print("\n✅ All items saved to database!")
+        logger.info(f"Total Time: {elapsed_total/60:.1f} minutes")
+        logger.info(f"Average Rate: {len(tenders)/elapsed_total:.2f} tenders/sec")
+        logger.info("")
+        logger.info("✅ All items saved to database!")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
-        logger.error(f"Failed: {e}", exc_info=True)
+        logger.error(f"❌ Error: {e}", exc_info=True)
         raise
 
     finally:
@@ -184,7 +210,8 @@ async def fetch_and_save_items():
             await api_client.close_session()
         if db_manager:
             await db_manager.close()
-            print("\n🔒 Connections closed")
+            logger.info("")
+            logger.info("🔒 Connections closed")
 
 if __name__ == "__main__":
     asyncio.run(fetch_and_save_items())

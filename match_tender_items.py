@@ -22,15 +22,19 @@ logger = logging.getLogger(__name__)
 async def match_tender_items():
     """Match all tender items with Fernandes products"""
 
-    print("=" * 70)
-    print("🔍 MATCHING TENDER ITEMS WITH FERNANDES PRODUCTS")
-    print("=" * 70)
+    from datetime import datetime
+    start_time = datetime.now()
+
+    logger.info("=" * 70)
+    logger.info("🔍 MATCHING TENDER ITEMS WITH FERNANDES PRODUCTS")
+    logger.info("=" * 70)
 
     # Load Fernandes products
-    print("\n1️⃣  Loading Fernandes products...")
+    logger.info("")
+    logger.info("1️⃣  Loading Fernandes products...")
     with open('fernandes_products.json', 'r', encoding='utf-8') as f:
         fernandes_products = json.load(f)
-    print(f"   ✅ Loaded {len(fernandes_products)} Fernandes products")
+    logger.info(f"✅ Loaded {len(fernandes_products)} Fernandes products")
 
     # Initialize
     db_manager = create_db_manager_from_env()
@@ -38,7 +42,8 @@ async def match_tender_items():
     matcher = ProductMatcher()
 
     # Get all tender items with homologated prices
-    print("\n2️⃣  Fetching tender items from database...")
+    logger.info("")
+    logger.info("2️⃣  Fetching tender items from database...")
     conn = await db_manager.get_connection()
 
     items = await conn.fetch("""
@@ -58,12 +63,19 @@ async def match_tender_items():
 
     await conn.close()
 
-    print(f"   ✅ Found {len(items)} tender items with homologated prices")
+    logger.info(f"✅ Found {len(items)} tender items with homologated prices")
+
+    if len(items) == 0:
+        logger.info("No items to match. Exiting.")
+        await db_manager.close()
+        return
 
     # Match each item
-    print("\n3️⃣  Matching items...")
+    logger.info("")
+    logger.info("3️⃣  Matching items...")
     matches_found = 0
     total_processed = 0
+    match_start = datetime.now()
 
     for i, item in enumerate(items, 1):
         total_processed += 1
@@ -99,26 +111,42 @@ async def match_tender_items():
             await db_ops.insert_matched_product(match_data)
 
             if matches_found <= 5:  # Show first 5 matches
-                print(f"\n   Match #{matches_found}:")
-                print(f"   Tender Item: {item['description'][:60]}...")
-                print(f"   Fernandes Product: {product['CÓDIGO']} - {product['DESCRIÇÃO'][:50]}...")
-                print(f"   Match Score: {score:.1f}%")
-                print(f"   Market Price: R$ {homologated_brl:.2f}")
-                print(f"   Our FOB Price: R$ {fob_brl:.2f}")
-                print(f"   Savings: {price_diff_percent:.1f}%")
+                logger.info(f"")
+                logger.info(f"Match #{matches_found}:")
+                logger.info(f"  Tender Item: {item['description'][:60]}...")
+                logger.info(f"  Fernandes Product: {product['CÓDIGO']} - {product['DESCRIÇÃO'][:50]}...")
+                logger.info(f"  Match Score: {score:.1f}%")
+                logger.info(f"  Market Price: R$ {homologated_brl:.2f}")
+                logger.info(f"  Our FOB Price: R$ {fob_brl:.2f}")
+                logger.info(f"  Savings: {price_diff_percent:.1f}%")
 
+        # Progress logging every 50 items
         if i % 50 == 0:
-            print(f"   Progress: {i}/{len(items)} items processed, {matches_found} matches found...")
+            elapsed = (datetime.now() - match_start).total_seconds()
+            rate = i / elapsed if elapsed > 0 else 0
+            remaining = len(items) - i
+            eta = remaining / rate if rate > 0 else 0
+            match_rate = (matches_found / i * 100) if i > 0 else 0
+
+            logger.info(f"Progress: {i}/{len(items)} items ({i/len(items)*100:.1f}%) | "
+                       f"Matches: {matches_found} ({match_rate:.1f}%) | "
+                       f"Rate: {rate:.1f} items/sec | "
+                       f"ETA: {eta/60:.1f} min")
 
     # Summary
-    print("\n" + "=" * 70)
-    print("📊 MATCHING SUMMARY")
-    print("=" * 70)
-    print(f"Total Items Processed: {total_processed}")
-    print(f"Matches Found: {matches_found}")
-    print(f"Match Rate: {matches_found / total_processed * 100:.1f}%")
-
-    print("\n✅ Matching complete!")
+    elapsed_total = (datetime.now() - start_time).total_seconds()
+    logger.info("")
+    logger.info("=" * 70)
+    logger.info("📊 MATCHING SUMMARY")
+    logger.info("=" * 70)
+    logger.info(f"Total Items Processed: {total_processed}")
+    logger.info(f"Matches Found: {matches_found}")
+    if total_processed > 0:
+        logger.info(f"Match Rate: {matches_found / total_processed * 100:.1f}%")
+    logger.info(f"Total Time: {elapsed_total/60:.1f} minutes")
+    logger.info(f"Average Rate: {total_processed/elapsed_total:.1f} items/sec")
+    logger.info("")
+    logger.info("✅ Matching complete!")
 
     await db_manager.close()
 
