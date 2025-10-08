@@ -291,10 +291,9 @@ class OptimizedTenderDiscovery:
             medical_keyword_count = self._count_medical_keywords_in_object(objeto)
 
             # AUTO-APPROVE CONDITIONS (skip API calls):
-            # 1. High confidence score (>= 70)
+            # 1. Medium-high confidence score (>= 60) - lowered from 70 for faster processing
             # 2. Multiple medical keywords (>= 2) in object
-            # 3. Very high score (>= 80) from org name alone
-            if quick_score >= 70 or medical_keyword_count >= 2 or quick_score >= 80:
+            if quick_score >= 60 or medical_keyword_count >= 2:
                 # High confidence - approve without sampling
                 confidence = max(quick_score, 60 + (medical_keyword_count * 10))
                 confidence = min(confidence, 95)  # Cap at 95

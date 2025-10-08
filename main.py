@@ -269,27 +269,27 @@ class PNCPMedicalProcessor:
             phase2_time = (datetime.now() - phase2_start).total_seconds()
             logger.info(f"⏱️  Phase 2 completed in {phase2_time:.1f}s")
 
-            # Phase 3: Match Products
-            logger.info("\n" + "=" * 70)
-            logger.info("PHASE 3: PRODUCT MATCHING")
-            logger.info("=" * 70)
-            phase3_start = datetime.now()
+            # # Phase 3: Match Products
+            # logger.info("\n" + "=" * 70)
+            # logger.info("PHASE 3: PRODUCT MATCHING")
+            # logger.info("=" * 70)
+            # phase3_start = datetime.now()
 
-            await self.match_products()
+            # await self.match_products()
 
-            phase3_time = (datetime.now() - phase3_start).total_seconds()
-            logger.info(f"⏱️  Phase 3 completed in {phase3_time:.1f}s")
+            # phase3_time = (datetime.now() - phase3_start).total_seconds()
+            # logger.info(f"⏱️  Phase 3 completed in {phase3_time:.1f}s")
 
-            # Phase 4: Export to Notion
-            logger.info("\n" + "=" * 70)
-            logger.info("PHASE 4: EXPORTING TO NOTION")
-            logger.info("=" * 70)
-            phase4_start = datetime.now()
+            # # Phase 4: Export to Notion
+            # logger.info("\n" + "=" * 70)
+            # logger.info("PHASE 4: EXPORTING TO NOTION")
+            # logger.info("=" * 70)
+            # phase4_start = datetime.now()
 
-            await self.export_to_notion_db()
+            # await self.export_to_notion_db()
 
-            phase4_time = (datetime.now() - phase4_start).total_seconds()
-            logger.info(f"⏱️  Phase 4 completed in {phase4_time:.1f}s")
+            # phase4_time = (datetime.now() - phase4_start).total_seconds()
+            # logger.info(f"⏱️  Phase 4 completed in {phase4_time:.1f}s")
 
             # Summary
             total_time = (datetime.now() - workflow_start).total_seconds()
@@ -298,8 +298,8 @@ class PNCPMedicalProcessor:
             logger.info("=" * 70)
             logger.info(f"Phase 1 (Discovery): {phase1_time:.1f}s")
             logger.info(f"Phase 2 (Items):     {phase2_time:.1f}s")
-            logger.info(f"Phase 3 (Matching):  {phase3_time:.1f}s")
-            logger.info(f"Phase 4 (Export):    {phase4_time:.1f}s")
+            # logger.info(f"Phase 3 (Matching):  {phase3_time:.1f}s")
+            # logger.info(f"Phase 4 (Export):    {phase4_time:.1f}s")
             logger.info(f"Total Time:          {total_time:.1f}s")
             logger.info("=" * 70)
 
