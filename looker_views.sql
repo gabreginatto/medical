@@ -40,7 +40,6 @@ SELECT
     t.sequential_number,
     t.publication_date,
     t.state_code,
-    t.municipality,
     t.total_homologated_value as tender_total_value,
     t.modality_code,
 
@@ -167,17 +166,9 @@ COMMENT ON VIEW vw_items_by_state IS
 CREATE OR REPLACE VIEW vw_matched_products_analysis AS
 SELECT
     mp.id as match_id,
-    mp.match_confidence,
-    mp.match_method,
-    mp.match_reasoning,
-    mp.price_difference_percent,
+    mp.similarity_score as match_confidence,
+    mp.product_code,
     mp.created_at as match_date,
-
-    -- Fernandes product
-    mp.fernandes_product_id,
-    fp.code as fernandes_product_code,
-    fp.description as fernandes_product_description,
-    fp.price_brl as fernandes_price_brl,
 
     -- Tender item details
     ti.description as tender_item_description,
@@ -191,26 +182,13 @@ SELECT
     t.control_number,
     t.state_code,
     t.publication_date,
-    o.name as organization_name,
-    o.government_level,
-
-    -- Opportunity calculation
-    CASE
-        WHEN mp.price_difference_percent > 30 THEN 'High Opportunity (>30%)'
-        WHEN mp.price_difference_percent > 15 THEN 'Medium Opportunity (15-30%)'
-        WHEN mp.price_difference_percent > 0 THEN 'Low Opportunity (0-15%)'
-        ELSE 'No Savings'
-    END as opportunity_level,
-
-    -- Potential savings
-    ROUND((ti.homologated_unit_value - fp.price_brl) * ti.quantity, 2) as potential_savings_brl
+    o.name as organization_name
 
 FROM matched_products mp
-JOIN tender_items ti ON mp.tender_item_id = ti.id
-LEFT JOIN fernandes_products fp ON mp.fernandes_product_id = fp.id
+JOIN tender_items ti ON mp.item_id = ti.id
 JOIN tenders t ON ti.tender_id = t.id
 JOIN organizations o ON t.organization_id = o.id
-ORDER BY mp.price_difference_percent DESC;
+ORDER BY mp.similarity_score DESC;
 
 COMMENT ON VIEW vw_matched_products_analysis IS
 'Analysis of matched products from ai_matching/ module. Shows pricing comparisons and savings opportunities. Only populated after running AI matching.';
