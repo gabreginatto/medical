@@ -4,20 +4,103 @@ A comprehensive system for discovering, processing, and analyzing medical supply
 
 ## 🆕 V8: Looker-First Approach
 
-**New in V8:** Phase 3 (Product Matching) is now OPTIONAL. The recommended workflow is:
-1. Run `main.py` daily to collect data (fast - no matching)
-2. Explore data visually in Looker Studio
-3. Run `ai_matching/` module for specific product categories you care about
+**New in V8:** Phase 3 (Product Matching) is now **OPTIONAL** for a better, more flexible workflow.
 
-**See `V8_WORKFLOW.md` for complete guide.**
+### 🎯 **The V8 Workflow**
+
+**Problem V8 Solves:**
+- V7 matched ALL items automatically with only 30% success rate (fuzzy matching)
+- Wasted time on items you don't care about
+- Hard to explore what products are actually available
+
+**V8 Solution: Looker-First + AI Matching**
+
+```
+Step 1: Collect Data          Step 2: Explore           Step 3: AI Match
+   (Automated)                   (Visual)                  (Targeted)
+       ↓                           ↓                          ↓
+   main.py              →    Looker Studio      →      ai_matching/
+ (Phase 3 SKIP)              Find categories           70% success rate
+   ~10 min                   Identify keywords           ~$0.02/run
+```
+
+### 📋 **Quick Start**
 
 ```bash
-# V8 daily run (Phase 3 skipped by default - faster!)
+# 1. Daily data collection (Phase 3 skipped by default - faster!)
 python3 main.py --start 20250101 --end 20250131 --states SP RJ
 
-# Optional: Enable Phase 3 if you want automatic fuzzy matching
+# 2. Explore in Looker Studio
+# - Connect to Cloud SQL database
+# - Run looker_views.sql to create 7 pre-built views
+# - Create dashboards and find interesting product categories
+
+# 3. Update keywords.json with products you want to match
+# Example: ["curativo", "transparente", "filme", "gaze"]
+
+# 4. Run AI matching for those specific products
+python3 ai_matching/step1_extract_keywords.py  # Extract filtered items
+python3 ai_matching/step2_gemini.py            # AI match (70% success)
+python3 ai_matching/step3_save.py              # Save to database
+
+# 5. View results in Looker
+# Use vw_matched_products_analysis view
+
+# Optional: Enable Phase 3 for automatic fuzzy matching (30% success)
 python3 main.py --start 20250101 --end 20250131 --states SP --match
 ```
+
+### 🎯 **V8 Benefits**
+
+| Feature | V7 (Old) | V8 (New) |
+|---------|----------|----------|
+| Daily run time | ~15 min | ~10 min ⚡ |
+| Phase 3 | Always runs | Skipped by default |
+| Match quality | 30% (fuzzy) | 70% (AI) 🎯 |
+| Flexibility | Match everything | Match what you want |
+| Exploration | SQL queries | Visual dashboards 📊 |
+| Cost | Free | ~$0.02 per category |
+| Control | Automated | You decide what to match |
+
+### 📊 **7 Pre-Built Looker Views**
+
+Run `looker_views.sql` in your database to get:
+
+1. **`vw_tender_items_complete`** - All items with full context
+2. **`vw_curativos`** - Wound care products filter
+3. **`vw_mdsap_items`** - MDSAP-relevant items filter
+4. **`vw_high_value_items`** - High-value opportunities (>R$10k)
+5. **`vw_items_by_state`** - Geographic aggregation
+6. **`vw_matched_products_analysis`** - Match performance analysis
+7. **`vw_monthly_trends`** - Time series analysis
+
+### 🔄 **Recommended Schedule**
+
+**Daily (Automated):**
+```bash
+# Cron job or Cloud Scheduler - runs every night
+0 2 * * * python3 main.py --start $(date -d "yesterday" +%Y%m%d) --end $(date +%Y%m%d) --states SP RJ MG
+```
+
+**Weekly (15 min manual):**
+1. Monday: Check Looker dashboards
+2. Found interesting category? Update `keywords.json`
+3. Run `ai_matching/` scripts
+4. Review results in Looker
+
+**Monthly (30 min manual):**
+1. Review medium-confidence matches CSV
+2. Update Fernandes catalog if needed
+3. Re-run matching for updated products
+
+### 📚 **Complete Documentation**
+
+- **`V8_WORKFLOW.md`** - Detailed workflow guide with examples
+- **`looker_views.sql`** - SQL views with usage instructions
+- **`ai_matching/README.md`** - AI matching module guide
+- **`LOOKER_STUDIO_GUIDE.md`** - Looker setup instructions
+
+---
 
 ## 🎯 What This System Does
 
