@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 PNCP Medical Data Processing - Main Orchestration Script
-Coordinates the complete workflow from tender discovery to Notion export
+Coordinates the complete workflow from tender discovery to product matching
 """
 
 import asyncio
@@ -21,7 +21,6 @@ from classifier import TenderClassifier
 from optimized_discovery import OptimizedTenderDiscovery, DiscoveryMetrics
 from fetch_and_save_items import fetch_and_save_items
 from match_tender_items import match_tender_items
-from notion_integration import export_to_notion
 
 # Configure logging (will be set up properly in main())
 logger = logging.getLogger(__name__)
@@ -148,87 +147,8 @@ class PNCPMedicalProcessor:
 
         logger.info(f"✅ Product matching complete")
 
-    async def export_to_notion_db(self):
-        """Phase 4: Export results to Notion"""
-        logger.info(f"\n📤 Phase 4: Exporting to Notion")
-
-        # Check if Notion is configured
-        notion_token = os.getenv('NOTION_API_TOKEN')
-        if not notion_token or notion_token == 'your_notion_integration_token':
-            logger.info("⚠️  Notion integration not configured, skipping export")
-            logger.info("   Set NOTION_API_TOKEN in .env to enable Notion export")
-            return
-
-        try:
-            # Fetch recent data from database for export
-            tenders_data = await self._get_recent_tenders()
-            items_data = await self._get_recent_items()
-            opportunities_data = await self._get_matched_products()
-
-            # Export to Notion
-            await export_to_notion(tenders_data, items_data, opportunities_data)
-
-            logger.info(f"✅ Notion export complete")
-
-        except Exception as e:
-            logger.error(f"Notion export failed: {e}")
-
-    async def _get_recent_tenders(self) -> List[dict]:
-        """Get recent tenders for Notion export"""
-        conn = await self.db_manager.get_connection()
-        try:
-            rows = await conn.fetch("""
-                SELECT t.*, o.name as organization_name, o.cnpj
-                FROM tenders t
-                JOIN organizations o ON t.organization_id = o.id
-                WHERE t.created_at >= CURRENT_DATE - INTERVAL '30 days'
-                ORDER BY t.created_at DESC
-                LIMIT 100
-            """)
-            return [dict(row) for row in rows]
-        finally:
-            await conn.close()
-
-    async def _get_recent_items(self) -> List[dict]:
-        """Get recent items for Notion export"""
-        conn = await self.db_manager.get_connection()
-        try:
-            rows = await conn.fetch("""
-                SELECT ti.*, t.control_number, t.state_code, o.name as organization_name
-                FROM tender_items ti
-                JOIN tenders t ON ti.tender_id = t.id
-                JOIN organizations o ON t.organization_id = o.id
-                WHERE ti.created_at >= CURRENT_DATE - INTERVAL '30 days'
-                AND ti.homologated_unit_value IS NOT NULL
-                ORDER BY ti.homologated_total_value DESC
-                LIMIT 200
-            """)
-            return [dict(row) for row in rows]
-        finally:
-            await conn.close()
-
-    async def _get_matched_products(self) -> List[dict]:
-        """Get matched products for Notion export"""
-        conn = await self.db_manager.get_connection()
-        try:
-            rows = await conn.fetch("""
-                SELECT mp.*, ti.description as tender_item_description,
-                       ti.quantity, ti.homologated_unit_value,
-                       t.control_number, t.state_code, o.name as organization_name
-                FROM matched_products mp
-                JOIN tender_items ti ON mp.tender_item_id = ti.id
-                JOIN tenders t ON ti.tender_id = t.id
-                JOIN organizations o ON t.organization_id = o.id
-                WHERE mp.created_at >= CURRENT_DATE - INTERVAL '30 days'
-                ORDER BY mp.price_difference_percent DESC
-                LIMIT 100
-            """)
-            return [dict(row) for row in rows]
-        finally:
-            await conn.close()
-
     async def run_complete_workflow(self, start_date: str, end_date: str, states: List[str] = None):
-        """Run complete workflow: discovery → items → matching → export"""
+        """Run complete workflow: discovery → items → matching"""
 
         logger.info("\n" + "=" * 70)
         logger.info("🚀 PNCP MEDICAL DATA PROCESSING - COMPLETE WORKFLOW")
@@ -280,17 +200,6 @@ class PNCPMedicalProcessor:
             phase3_time = (datetime.now() - phase3_start).total_seconds()
             logger.info(f"⏱️  Phase 3 completed in {phase3_time:.1f}s")
 
-            # Phase 4: Export to Notion
-            logger.info("\n" + "=" * 70)
-            logger.info("PHASE 4: EXPORTING TO NOTION")
-            logger.info("=" * 70)
-            phase4_start = datetime.now()
-
-            await self.export_to_notion_db()
-
-            phase4_time = (datetime.now() - phase4_start).total_seconds()
-            logger.info(f"⏱️  Phase 4 completed in {phase4_time:.1f}s")
-
             # Summary
             total_time = (datetime.now() - workflow_start).total_seconds()
             logger.info("\n" + "=" * 70)
@@ -299,7 +208,6 @@ class PNCPMedicalProcessor:
             logger.info(f"Phase 1 (Discovery): {phase1_time:.1f}s")
             logger.info(f"Phase 2 (Items):     {phase2_time:.1f}s")
             logger.info(f"Phase 3 (Matching):  {phase3_time:.1f}s")
-            logger.info(f"Phase 4 (Export):    {phase4_time:.1f}s")
             logger.info(f"Total Time:          {total_time:.1f}s")
             logger.info("=" * 70)
 

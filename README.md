@@ -13,7 +13,7 @@ This system automatically:
 5. **Analyzes Price Competitiveness** against FOB prices
 6. **Prevents Duplicate Processing** with intelligent tracking (max 20 tenders per state per run)
 7. **Stores Everything** in Google Cloud SQL for analysis
-8. **Exports to Notion** for live business intelligence dashboards
+8. **Visualizes with Looker Studio** for live business intelligence dashboards
 9. **Generates Reports** for business intelligence
 
 ## 🏗️ Architecture
@@ -26,8 +26,8 @@ This system automatically:
                                 │                       │
                                 v                       v
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Notion Live    │ <- │  Google Cloud    │ <- │  Price Analysis │
-│  Dashboard      │    │  SQL Database    │    │  Engine         │
+│ Looker Studio   │ <- │  Google Cloud    │ <- │  Price Analysis │
+│   Dashboard     │    │  SQL Database    │    │  Engine         │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
         ^                        │                       │
         │                        v                       v
@@ -132,11 +132,9 @@ pncp-medical-processor/
 ├── schema.sql                   # Database schema definition
 ├── processed_tenders_tracker.py # Duplicate prevention system
 ├── view_processed_tenders.py    # Processing statistics viewer
-├── notion_integration.py        # Notion API integration
-├── setup_notion_databases.py   # Automated Notion database creation
 ├── requirements.txt             # Python dependencies
 ├── README.md                    # This file
-├── NOTION_SETUP.md             # Notion integration guide
+├── LOOKER_STUDIO_GUIDE.md      # Looker Studio dashboard guide
 ├── processed_tenders.json       # Processed tenders tracking (auto-generated)
 └── exports/                     # Generated reports and exports
 ```
@@ -182,12 +180,12 @@ dimension_tolerance = 0.2  # ±20% size tolerance
 - **Smart resumption** - can restart and continue where it left off
 - **Progress tracking** - view statistics with `python view_processed_tenders.py`
 
-### 2. **Live Notion Dashboard Integration**
-- **Automated Notion setup** - `python setup_notion_databases.py` creates all databases
-- **Real-time exports** - competitive opportunities automatically appear in Notion
-- **3 specialized databases**: Tenders, Items, and Competitive Opportunities
-- **Business intelligence** - visual analytics instead of CSV files
+### 2. **Live Looker Studio Dashboard Integration**
+- **Real-time visualization** - connect directly to Cloud SQL database
+- **Interactive dashboards** - explore tenders, items, and competitive opportunities
+- **Business intelligence** - visual analytics with filters and drill-downs
 - **Mobile access** - check opportunities on your phone
+- **See LOOKER_STUDIO_GUIDE.md** for setup instructions
 
 ### 3. **Smart Classification**
 - **Government Level**: Automatically identifies Federal/State/Municipal tenders
@@ -451,7 +449,7 @@ For issues and questions:
 2. Test across multiple modalities (Pregão Eletrônico, Dispensa)
 3. Validate product matching accuracy
 4. Begin price competitiveness analysis testing
-5. Set up Notion integration for live dashboards
+5. Set up Looker Studio dashboards for visualization (see LOOKER_STUDIO_GUIDE.md)
 
 **Technical Details:**
 - Database: Cloud SQL PostgreSQL (us-central1)
