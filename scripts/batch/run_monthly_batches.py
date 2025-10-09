@@ -111,9 +111,11 @@ class MonthlyBatchRunner:
 
         try:
             # Run main.py and wait for completion
+            # Set cwd to project root (2 levels up from scripts/batch/)
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
             result = subprocess.run(
                 cmd,
-                cwd=os.path.dirname(os.path.abspath(__file__)),
+                cwd=project_root,
                 check=True,
                 capture_output=False,  # Let output flow to console
                 text=True
