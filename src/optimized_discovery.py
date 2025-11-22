@@ -16,11 +16,11 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
 
-from config import ProcessingConfig
-from pncp_api import PNCPAPIClient
-from classifier import TenderClassifier
-from database import DatabaseOperations
-from org_cache import OrganizationCache, get_org_cache
+from .config import ProcessingConfig
+from .pncp_api import PNCPAPIClient
+from .classifier import TenderClassifier
+from .database import DatabaseOperations
+from .org_cache import OrganizationCache, get_org_cache
 
 logger = logging.getLogger(__name__)
 

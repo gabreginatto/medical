@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database import create_db_manager_from_env, DatabaseOperations
-from pncp_api import PNCPAPIClient
+from src.database import create_db_manager_from_env, DatabaseOperations
+from src.pncp_api import PNCPAPIClient
 
 # Logger will be configured by setup_logging()
 logger = logging.getLogger(__name__)

@@ -7,7 +7,7 @@ import re
 import logging
 from typing import Dict, List, Optional, Tuple, Set, Any
 from dataclasses import dataclass
-from config import (
+from .config import (
     GovernmentLevel, TenderSize, OrganizationType,
     classify_tender_size, CONTRACTING_MODALITIES, BRAZILIAN_STATES
 )

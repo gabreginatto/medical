@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from config import OrganizationType, GovernmentLevel
+from .config import OrganizationType, GovernmentLevel
 
 logger = logging.getLogger(__name__)
 

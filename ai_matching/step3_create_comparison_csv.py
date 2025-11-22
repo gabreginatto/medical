@@ -23,7 +23,7 @@ def create_comparison_csv():
     print(f"✅ Loaded {len(matches)} matches")
 
     # Load Fernandes catalog for prices
-    fernandes_file = 'data/fernandes_products.json'
+    fernandes_file = 'config/fernandes_products.json'
     print(f"📂 Loading Fernandes catalog from {fernandes_file}...")
 
     with open(fernandes_file, 'r', encoding='utf-8') as f:

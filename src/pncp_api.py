@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import time
-from config import APIConfig, ProcessingConfig
+from .config import APIConfig, ProcessingConfig
 
 logger = logging.getLogger(__name__)
 

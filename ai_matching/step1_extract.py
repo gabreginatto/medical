@@ -8,7 +8,7 @@ import asyncio
 import json
 from datetime import datetime
 from dotenv import load_dotenv
-from database import create_db_manager_from_env
+from src.database import create_db_manager_from_env
 
 load_dotenv()
 

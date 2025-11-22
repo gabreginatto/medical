@@ -5,7 +5,7 @@ Search for a company by CNPJ in the database
 import os
 import asyncio
 from dotenv import load_dotenv
-from database import create_db_manager_from_env
+from src.database import create_db_manager_from_env
 
 # Load environment variables
 load_dotenv()

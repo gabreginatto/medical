@@ -9,7 +9,7 @@ import json
 import csv
 from datetime import datetime
 from dotenv import load_dotenv
-from database import create_db_manager_from_env
+from src.database import create_db_manager_from_env
 
 load_dotenv()
 
@@ -18,7 +18,7 @@ async def extract_filtered_items():
     """Extract tender items with keywords from keywords.json"""
 
     # Load keywords from JSON file
-    with open('keywords.json', 'r', encoding='utf-8') as f:
+    with open('config/keywords.json', 'r', encoding='utf-8') as f:
         keywords_data = json.load(f)
         keywords = keywords_data.get('keywords', [])
 

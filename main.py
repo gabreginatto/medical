@@ -14,13 +14,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from config import ProcessingConfig, BRAZILIAN_STATES
-from database import CloudSQLManager, DatabaseOperations, create_db_manager_from_env
-from pncp_api import PNCPAPIClient
-from classifier import TenderClassifier
-from optimized_discovery import OptimizedTenderDiscovery, DiscoveryMetrics
-from fetch_and_save_items import fetch_and_save_items
-from match_tender_items import match_tender_items
+from src.config import ProcessingConfig, BRAZILIAN_STATES
+from src.database import CloudSQLManager, DatabaseOperations, create_db_manager_from_env
+from src.pncp_api import PNCPAPIClient
+from src.classifier import TenderClassifier
+from src.optimized_discovery import OptimizedTenderDiscovery, DiscoveryMetrics
+from src.fetch_and_save_items import fetch_and_save_items
+from src.match_tender_items import match_tender_items
 
 # Configure logging (will be set up properly in main())
 logger = logging.getLogger(__name__)

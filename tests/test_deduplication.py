@@ -11,7 +11,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database import create_db_manager_from_env, DatabaseOperations
+from src.database import create_db_manager_from_env, DatabaseOperations
 
 async def test_deduplication():
     """Test the filter_new_tenders function"""

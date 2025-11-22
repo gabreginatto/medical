@@ -18,11 +18,11 @@ load_dotenv()
 # Add project root to path (parent of tests directory)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import ProcessingConfig
-from database import CloudSQLManager, DatabaseOperations
-from pncp_api import PNCPAPIClient
-from classifier import TenderClassifier
-from optimized_discovery import OptimizedTenderDiscovery
+from src.config import ProcessingConfig
+from src.database import CloudSQLManager, DatabaseOperations
+from src.pncp_api import PNCPAPIClient
+from src.classifier import TenderClassifier
+from src.optimized_discovery import OptimizedTenderDiscovery
 from item_processor import ItemProcessor
 from product_matcher import ProductMatcher
 import csv

@@ -19,11 +19,11 @@ load_dotenv()
 # Add project root to path (parent of tests directory)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import ProcessingConfig
-from database import create_db_manager_from_env, DatabaseOperations
-from pncp_api import PNCPAPIClient
-from classifier import TenderClassifier
-from optimized_discovery import OptimizedTenderDiscovery, print_metrics_summary
+from src.config import ProcessingConfig
+from src.database import create_db_manager_from_env, DatabaseOperations
+from src.pncp_api import PNCPAPIClient
+from src.classifier import TenderClassifier
+from src.optimized_discovery import OptimizedTenderDiscovery, print_metrics_summary
 
 # Configure logging
 logging.basicConfig(

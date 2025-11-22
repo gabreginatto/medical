@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database import create_db_manager_from_env, DatabaseOperations
-from product_matcher import ProductMatcher
+from .database import create_db_manager_from_env, DatabaseOperations
+from .product_matcher import ProductMatcher
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +32,7 @@ async def match_tender_items():
     # Load Fernandes products
     logger.info("")
     logger.info("1️⃣  Loading Fernandes products...")
-    with open('fernandes_products.json', 'r', encoding='utf-8') as f:
+    with open('config/fernandes_products.json', 'r', encoding='utf-8') as f:
         fernandes_products = json.load(f)
     logger.info(f"✅ Loaded {len(fernandes_products)} Fernandes products")
 

@@ -49,7 +49,7 @@ class GeminiMatcher:
         self.batch_size = 50  # Items to process per API call
         logger.info(f"✅ Batch size set to: {self.batch_size}")
 
-    def load_fernandes_catalog(self, filepath: str = 'data/fernandes_products.json'):
+    def load_fernandes_catalog(self, filepath: str = 'config/fernandes_products.json'):
         """Load Fernandes product catalog"""
         logger.info(f"📂 Loading Fernandes catalog from {filepath}...")
 

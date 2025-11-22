@@ -85,7 +85,7 @@
 **Recommended:** Option 1B (AWS Lambda) for best cost/performance
 
 ---
-
+1
 ### 🥈 **Strategy 2: Smart Date Range Chunking** (MEDIUM IMPACT)
 
 **Problem:** Fetching 75 days at once takes too long
@@ -234,42 +234,6 @@ results = await asyncio.gather(*tasks)
 
 **V4:** [6, 8] → 374 wasted sampling calls
 **V5:** [1, 6, 9, 12] → Eliminated 374 calls (22 minutes saved)
-
-**Status:** ✅ **IMPLEMENTED**
-
----
-
-### 🎯 **Strategy 7: ID-Based Deduplication** (IMPLEMENTED IN V5 ✅)
-
-**Problem:** Re-processing tenders already in database when running overlapping queries
-**Solution:** Filter by unique control_number before processing pipeline
-
-**Implementation:**
-```python
-# In database.py
-async def filter_new_tenders(fetched_tenders) -> List[Dict]:
-    """Check which tenders are already in DB by control_number"""
-    existing = await conn.fetch(
-        "SELECT control_number FROM tenders WHERE control_number = ANY($1)",
-        control_numbers
-    )
-    return [t for t in fetched_tenders if t not in existing]
-
-# In optimized_discovery.py (after Stage 1)
-new_tenders = await self.db_ops.filter_new_tenders(raw_tenders)
-```
-
-**Benefits:**
-- ✅ **State-agnostic**: Works across any state combination
-- ✅ **Date-agnostic**: Works with overlapping date ranges
-- ✅ **Modality-agnostic**: Works with any modality mix
-- ✅ **Exact deduplication**: Based on PNCP's unique control numbers
-- ✅ **Fast**: Indexed query, <1 second for 5,000 tenders
-
-**Performance Impact:**
-- First run: No change (0% duplicates)
-- Second run same query: 100% filtered, skip all downstream processing
-- Overlapping runs: Filter only duplicates, process only new
 
 **Status:** ✅ **IMPLEMENTED**
 

@@ -61,6 +61,7 @@ reports/
 *.csv
 *.xlsx
 *.json
+!exhibitors.json
 
 # Credentials and secrets
 .env
@@ -85,3 +86,11 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+
+# Project-specific large files
+CMEF/CMEF_2025.pdf
+CMEF/data/
+Medica/downloads/
+Medica/backup_old_scripts/
+Medica/test_downloads/
+Medica/china_exhibitors_with_gcs_urls.json

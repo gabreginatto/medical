@@ -97,7 +97,7 @@ def create_sample_catalog():
         "products": sample_products
     }
 
-    output_file = 'data/fernandes_products.json'
+    output_file = 'config/fernandes_products.json'
 
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(catalog_data, f, indent=2, ensure_ascii=False)

@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database import create_db_manager_from_env, DatabaseOperations
-from pncp_api import PNCPAPIClient
+from .database import create_db_manager_from_env, DatabaseOperations
+from .pncp_api import PNCPAPIClient
 
 logging.basicConfig(
     level=logging.INFO,
