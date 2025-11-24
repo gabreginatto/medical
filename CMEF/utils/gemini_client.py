@@ -253,24 +253,32 @@ class GeminiParserClient:
 - Return ONLY the JSON, no other text"""
 
     def _create_batch_parsing_prompt(self, ocr_texts: List[str]) -> str:
-        """Create prompt for parsing multiple companies"""
-        # Truncate each text to avoid token limits
-        truncated_texts = [text[:1000] for text in ocr_texts]
-
-        texts_formatted = "\n\n---\n\n".join(
-            f"COMPANY {i+1}:\n{text}"
-            for i, text in enumerate(truncated_texts)
+        """Create prompt for parsing multiple PAGES (each with 6 companies)"""
+        # Each OCR text is a full page with 6 companies
+        # Don't truncate too much - we need all company data
+        texts_formatted = "\n\n===== PAGE BREAK =====\n\n".join(
+            f"PAGE {i+1}:\n{text[:5000]}"  # Increased from 1000 to 5000 chars
+            for i, text in enumerate(ocr_texts)
         )
 
-        return f"""Extract structured company information from these OCR text blocks from a Chinese medical equipment catalog.
+        return f"""Extract ALL company information from these catalog pages. Each page contains EXACTLY 6 company entries arranged in a 2x3 grid.
 
-**OCR Texts:**
+**IMPORTANT:** You MUST extract ALL 6 companies from EACH page.
+
+**OCR Text from {len(ocr_texts)} pages:**
 {texts_formatted}
 
-**For each company, extract:**
-- company_name_en, company_name_zh, booth_number, address, email, website, phone, scope_description
+**For EACH of the 6 companies on EACH page, extract:**
+- company_name_en: English company name
+- company_name_zh: Chinese company name
+- booth_number: Exhibition booth number
+- address: Full address
+- email: Email address
+- website: Website URL
+- phone: Phone number
+- scope_description: Product scope/description
 
-**Output JSON array format:**
+**Output JSON array format (ALL companies from ALL pages):**
 [
   {{
     "company_name_en": "...",
@@ -282,10 +290,13 @@ class GeminiParserClient:
     "phone": "...",
     "scope_description": "..."
   }},
-  ...
+  ... (repeat for ALL 6 companies on EACH page = {len(ocr_texts) * 6} total companies)
 ]
 
-Return ONLY the JSON array, no other text."""
+**Rules:**
+- Extract ALL {len(ocr_texts) * 6} companies (6 per page × {len(ocr_texts)} pages)
+- Use null for missing fields
+- Return ONLY the JSON array, no other text"""
 
     def _apply_regex_fallbacks(self, company_data: Dict, ocr_text: str) -> Dict:
         """Apply regex patterns to fill in missing fields"""

@@ -82,22 +82,34 @@ class GeminiOCRClient:
             # Create image part
             image_part = Part.from_data(image_bytes, mime_type="image/png")
 
-            # OCR prompt - optimized for catalog pages
+            # OCR prompt - optimized for catalog pages with 6 companies per page
             prompt = """Extract all text from this page from a Chinese medical equipment trade show catalog.
 
-Please output the text accurately, preserving the layout structure. Include:
-- Company names (Chinese and English)
-- Booth numbers
-- Addresses
+IMPORTANT: This page contains EXACTLY 6 company entries arranged in a 2x3 grid (2 columns, 3 rows).
+You MUST extract all 6 companies.
+
+For each company, extract:
+- Company name (Chinese and English)
+- Booth number
+- Address
 - Contact information (email, phone, website)
 - Product descriptions
 
-Be precise and maintain formatting."""
+Please output the text accurately, preserving the layout structure.
+Make sure you capture ALL 6 companies on this page."""
 
             # Generate content
             response = self.model.generate_content([prompt, image_part])
 
             ocr_text = response.text
+
+            # Validate: Count number of companies extracted
+            company_count = self._count_companies_in_text(ocr_text)
+
+            # If we didn't get 6 companies, retry with more explicit prompt
+            if company_count < 6 and retry_count == 0:
+                logger.warning(f"Only found {company_count} companies on {Path(image_path).name}, expected 6. Retrying with enhanced prompt...")
+                return self._extract_with_structured_prompt(image_path, retry_count + 1)
 
             ocr_result = {
                 'image_path': image_path,
@@ -107,11 +119,17 @@ Be precise and maintain formatting."""
                     'page': self._extract_page_number(image_path),
                     'timestamp': time.time(),
                     'model': self.model_name,
-                    'char_count': len(ocr_text)
+                    'char_count': len(ocr_text),
+                    'companies_detected': company_count,
+                    'validation_passed': company_count >= 6
                 }
             }
 
-            logger.debug(f"Extracted {len(ocr_text)} characters")
+            if company_count < 6:
+                logger.warning(f"⚠️ Page {Path(image_path).name}: Only captured {company_count}/6 companies")
+            else:
+                logger.debug(f"✅ Extracted {company_count} companies, {len(ocr_text)} characters")
+
             return ocr_result
 
         except Exception as e:
@@ -128,8 +146,103 @@ Be precise and maintain formatting."""
                     'image_path': image_path,
                     'text': '',
                     'confidence': 0.0,
-                    'metadata': {'error': str(e)}
+                    'metadata': {'error': str(e), 'companies_detected': 0, 'validation_passed': False}
                 }
+
+    def _extract_with_structured_prompt(self, image_path: str, retry_count: int) -> Dict:
+        """Retry extraction with structured JSON prompt to ensure all 6 companies are captured"""
+        logger.info(f"Using structured extraction for {Path(image_path).name}")
+
+        try:
+            with open(image_path, 'rb') as f:
+                image_bytes = f.read()
+
+            image_part = Part.from_data(image_bytes, mime_type="image/png")
+
+            # More structured prompt that asks for JSON output
+            prompt = """This is a page from a medical equipment catalog with EXACTLY 6 company entries.
+
+The page has a 2x3 grid layout:
+- Top Left | Top Right
+- Middle Left | Middle Right
+- Bottom Left | Bottom Right
+
+Extract ALL 6 companies and return as a JSON array with this format:
+[
+  {
+    "position": "top-left",
+    "company_name_zh": "Chinese name",
+    "company_name_en": "English name",
+    "booth_number": "booth#",
+    "address": "full address",
+    "contact": {
+      "email": "email@example.com",
+      "phone": "phone",
+      "website": "website"
+    },
+    "description": "product description"
+  },
+  ... (repeat for all 6 companies)
+]
+
+If a field is not visible, use null. But you MUST extract all 6 company entries."""
+
+            response = self.model.generate_content([prompt, image_part])
+            ocr_text = response.text
+
+            company_count = self._count_companies_in_text(ocr_text)
+
+            return {
+                'image_path': image_path,
+                'text': ocr_text,
+                'confidence': 0.95,
+                'metadata': {
+                    'page': self._extract_page_number(image_path),
+                    'timestamp': time.time(),
+                    'model': self.model_name,
+                    'char_count': len(ocr_text),
+                    'companies_detected': company_count,
+                    'validation_passed': company_count >= 6,
+                    'structured_retry': True
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Structured extraction failed for {image_path}: {e}")
+            # Fall back to regular result
+            return self.extract_text_from_image(image_path, retry_count + 1)
+
+    def _count_companies_in_text(self, text: str) -> int:
+        """
+        Count approximate number of companies in extracted text
+        Uses booth number pattern as primary indicator
+        """
+        import re
+
+        # Count booth numbers (most reliable indicator)
+        # Format: X.XYZ## or X.XYZC##,X.XYZC## (for multiple booths)
+        booth_pattern = r'\b\d+\.\d+[A-Z]+\d+'
+        booth_matches = re.findall(booth_pattern, text)
+
+        # Also count company name patterns
+        # Look for "Co.,Ltd", "Company", "Corp", "Inc" etc
+        company_suffixes = [
+            r'Co\.,?\s*Ltd',
+            r'Company',
+            r'Corporation',
+            r'Corp\.',
+            r'Inc\.',
+            r'Limited'
+        ]
+
+        company_name_count = 0
+        for suffix in company_suffixes:
+            company_name_count += len(re.findall(suffix, text, re.IGNORECASE))
+
+        # Use the higher count (booth numbers are more reliable)
+        estimated_count = max(len(booth_matches), company_name_count)
+
+        return estimated_count
 
     def extract_text_from_batch(self, image_paths: List[str]) -> List[Dict]:
         """

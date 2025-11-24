@@ -94,3 +94,10 @@ Medica/downloads/
 Medica/backup_old_scripts/
 Medica/test_downloads/
 Medica/china_exhibitors_with_gcs_urls.json
+# Certification scraper downloads and outputs
+Medica/downloads_mdsap/
+Medica/downloads_tuv/
+Medica/exhibitors_mdsap.json
+Medica/exhibitors_mdsap.csv
+Medica/exhibitors_tuv.json
+Medica/exhibitors_tuv.csv

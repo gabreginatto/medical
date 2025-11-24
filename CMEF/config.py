@@ -62,8 +62,8 @@ class CMEFConfig:
     GEMINI_FALLBACK_MODEL: str = "gemini-1.5-flash"  # Fallback if 2.5 unavailable
 
     # Batch Processing
-    GEMINI_BATCH_SIZE: int = 20  # Companies to process per API call
-    GEMINI_TIMEOUT: int = 60  # seconds
+    GEMINI_BATCH_SIZE: int = 5  # PAGES to process per API call (5 pages × 6 companies = 30 companies)
+    GEMINI_TIMEOUT: int = 120  # seconds (increased for larger batches)
     GEMINI_MAX_RETRIES: int = 3
 
     # Rate Limiting (Gemini 2.5 Flash free tier: 15 RPM)

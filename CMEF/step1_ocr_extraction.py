@@ -171,6 +171,40 @@ class OCRExtractor:
 
         logger.info(f"Total characters extracted: {total_chars:,}")
         logger.info(f"Average confidence: {avg_confidence:.2f}")
+
+        # Validation summary (6 companies per page)
+        logger.info("\n" + "=" * 70)
+        logger.info("VALIDATION SUMMARY (6 companies per page expected)")
+        logger.info("=" * 70)
+
+        total_companies = 0
+        pages_with_6 = 0
+        pages_with_issues = []
+
+        for result in all_ocr_results:
+            metadata = result.get('metadata', {})
+            companies_detected = metadata.get('companies_detected', 0)
+            total_companies += companies_detected
+
+            if companies_detected >= 6:
+                pages_with_6 += 1
+            else:
+                page_num = metadata.get('page', 'unknown')
+                pages_with_issues.append((page_num, companies_detected))
+
+        expected_companies = output_data['total_pages'] * 6
+        logger.info(f"Total companies extracted: {total_companies}")
+        logger.info(f"Expected companies (6 per page): {expected_companies}")
+        logger.info(f"Coverage: {total_companies/expected_companies*100:.1f}%")
+        logger.info(f"\nPages with all 6 companies: {pages_with_6}/{output_data['total_pages']}")
+
+        if pages_with_issues:
+            logger.warning(f"\n⚠️ Pages with incomplete extraction ({len(pages_with_issues)} pages):")
+            for page_num, count in pages_with_issues[:20]:  # Show first 20
+                logger.warning(f"  Page {page_num}: {count}/6 companies")
+            if len(pages_with_issues) > 20:
+                logger.warning(f"  ... and {len(pages_with_issues) - 20} more pages")
+
         logger.info(f"\nOutput saved to: {output_file}")
         logger.info(f"\nNext step: Run step2_parse_and_structure.py")
 
